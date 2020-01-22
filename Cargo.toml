@@ -1,0 +1,16 @@
+[package]
+name = "QRuSSt"
+version = "0.1.0"
+authors = ["italic <italic.rendezvous@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gtk = {version = "0.8.0", features = ["v3_22_30"]}
+gio = {version = "0.8.0"}
+cpal = "*"
+rodio = "*"
+structopt = "*"
+serde = {version = "*", features = ["derive"]}
+ron = "*"
