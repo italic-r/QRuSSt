@@ -80,7 +80,7 @@ fn _cpal_main() {
     }
 }
 
-fn main() {
+fn _structopt_main() {
     let mut set = settings::Settings::default();
     let opts = settings::Opts::from_args(); // TODO: validate args?
     if let Some(c) = opts.clone().config {
@@ -108,4 +108,13 @@ fn main() {
     }
 
     // _cpal_main();
+}
+
+fn _clap_main() {
+    let opts = settings::clap_args();
+    println!("{:#?}", opts);
+}
+
+fn main() {
+    _clap_main()
 }

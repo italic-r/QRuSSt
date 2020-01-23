@@ -2,14 +2,89 @@ use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::PathBuf;
+use std::num::ParseIntError;
 
+use clap;
+use clap::clap_app;
 use structopt::StructOpt;
 use serde::{Serialize, Deserialize};
 use ron::{
     ser::{PrettyConfig, to_string_pretty},
     de::{from_reader, from_str},
 };
+use cpal;
+use cpal::traits::*;
 
+
+pub fn clap_args() -> clap::ArgMatches<'static> {
+    // closure from clap docs
+    let path_exists = |path| {
+        if std::fs::metadata(path).is_ok() {
+            Ok(())
+        } else {
+            Err(String::from("File does not exist"))
+        }
+    };
+    let f_range = |range: String| {
+        if let Ok(val) = range.parse::<u32>() {
+            if val <= 3000 {
+                Ok(())
+            } else {
+                Err(String::from("Maximum range: 1-3000"))
+            }
+        } else {
+            Err(String::from("Positive integer inputs only."))
+        }
+    };
+    let d_range = |range: String| {
+        if range.parse::<u32>().is_ok() {
+            Ok(())
+        } else {
+            Err(String::from("Integer values only."))
+        }
+    };
+    let C_B_range = |val: String| {
+        if let Ok(v) = val.parse::<u32>() {
+            if v <= 100 {
+                Ok(())
+            } else {
+                Err(String::from("Range: 0-100"))
+            }
+        } else {
+            Err(String::from("Integer range only"))
+        }
+    };
+    let aud_exists = |device: String| {
+        if cpal::default_host().devices().unwrap().any(|x| x.name().unwrap() == device) {
+            Ok(())
+        } else {
+            Err(String::from("Device unavailable"))
+        }
+    };
+
+    clap_app!(QRuSSt =>
+        (about: "A QRSS processor using audio input from a sound card or SDR demodulator")
+        (@arg save_prefs:      -s --("save-prefs")               display_order(1)                                   "Write given arguments to config file"                            )
+        (@arg config:          -c --config          [FILE]       display_order(1) number_of_values(1) {path_exists} "Path to config file (default: ~/.config/QRuSSt/config)"          )
+
+        (@arg window:          -w --window                       display_order(4)                                   "Use window dimensions for image export"                          )
+        (@arg dimensions:      -D --dimensions      [X] [Y]      display_order(3) number_of_values(2) {d_range}     "Pixel dimensions for export (see --window)"                      )
+        (@arg brightness:      -B --brightness      [NUM]        display_order(3) number_of_values(1)               "Image brightness (0-100)"                                        )
+        (@arg contrast:        -C --contrast        [NUM]        display_order(3) number_of_values(1) {C_B_range}   "Image contrast (0-100)"                                          )
+
+        (@arg export_images:   -i --images                       display_order(3)                                   "Enable image export"                                             )
+        (@arg export_path:     -E --("export-path") [DIR]        display_order(4) number_of_values(1) {path_exists} "Image export directory (default: ~/.local/share/QRuSSt/export/)" )
+
+        (@arg device:          -d --device          [NAME]       display_order(2) number_of_values(1) {aud_exists}  "Audio device to use (use device name from `arecord -L`)"         )
+        (@arg frequency_range: -F --("f-range")     [LOW] [HIGH] display_order(2) number_of_values(2) {f_range}     "Audio frequency range to process/display (maximum range: 1-3000)")
+        (@arg format:          -f --format          [TYPE]       display_order(2) number_of_values(1)
+             possible_values(&["i16", "u16", "f32"])
+             "Audio device sample format")
+        (@arg rate:            -r --rate            [SAMPLES]    display_order(2) number_of_values(1)
+             possible_values(&["16000", "32000", "44100", "48000", "96000", "192000"])
+             "Audio device sample rate")
+    ).get_matches()
+}
 
 /// QRuSSt is a QRSS processor using audio input
 /// from a sound card or SDR demodulator.
