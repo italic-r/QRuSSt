@@ -30,7 +30,7 @@ pub fn clap_args() -> clap::ArgMatches<'static> {
             if val <= 3000 {
                 Ok(())
             } else {
-                Err(String::from("Maximum range: 1-3000"))
+                Err(String::from("Maximum range: 0-3000"))
             }
         } else {
             Err(String::from("Positive integer inputs only."))
@@ -76,7 +76,7 @@ pub fn clap_args() -> clap::ArgMatches<'static> {
         (@arg export_path:     -E --("export-path") [DIR]        display_order(4) number_of_values(1) {path_exists} "Image export directory (default: ~/.local/share/QRuSSt/export/)" )
 
         (@arg device:          -d --device          [NAME]       display_order(2) number_of_values(1) {aud_exists}  "Audio device to use (use device name from `arecord -L`)"         )
-        (@arg frequency_range: -F --("f-range")     [LOW] [HIGH] display_order(2) number_of_values(2) {f_range}     "Audio frequency range to process/display (maximum range: 1-3000)")
+        (@arg frequency_range: -F --("f-range")     [LOW] [HIGH] display_order(2) number_of_values(2) {f_range}     "Audio frequency range to process/display (maximum range: 0-3000)")
         (@arg format:          -f --format          [TYPE]       display_order(2) number_of_values(1)
              possible_values(&["i16", "u16", "f32"])
              "Audio device sample format")

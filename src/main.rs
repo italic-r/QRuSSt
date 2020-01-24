@@ -14,6 +14,12 @@ use rodio;
 use cpal;
 use cpal::traits::*;
 use structopt::StructOpt;
+use rustfft::{
+    algorithm::Radix4,
+    FFT,
+    num_complex::Complex,
+    num_traits::Zero
+};
 
 use gtk::{AboutDialog, ApplicationWindow, Builder, Button};
 use gtk::prelude::*;
@@ -111,10 +117,21 @@ fn _structopt_main() {
 }
 
 fn _clap_main() {
-    let opts = settings::clap_args();
+    let opts = settings::clap_args(); // validate args
     println!("{:#?}", opts);
 }
 
+fn _fft_main() {
+    let mut input:  Vec<Complex<f32>> = vec![Complex::zero(); 4096];
+    let mut output: Vec<Complex<f32>> = vec![Complex::zero(); 4096];
+
+    let fft = Radix4::new(4096, false);
+    fft.process(&mut input, &mut output);
+
+    println!("{:?}",  input);
+    println!("{:?}", output);
+}
+
 fn main() {
-    _clap_main()
+    _fft_main()
 }
