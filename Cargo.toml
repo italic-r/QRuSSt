@@ -16,3 +16,5 @@ structopt = "~0.3.7"
 serde =     {version = "*", features = ["derive"]}
 ron =       "~0.5.1"
 rustfft =   "~3.0.1"
+sample =    "*"
+gnuplot =   "*"
