@@ -86,99 +86,6 @@ pub fn clap_args() -> clap::ArgMatches<'static> {
     ).get_matches()
 }
 
-/// QRuSSt is a QRSS processor using audio input
-/// from a sound card or SDR demodulator.
-#[derive(StructOpt, Debug, Clone, PartialEq)]
-pub struct Opts {
-    #[structopt(short, long)]
-    /// Write given arguments to config file
-    /// (ie make permanent)
-    pub (crate) save_prefs: bool,
-
-    /// Path to configuration file
-    /// (default: ~/.config/QRuSSt/config)
-    #[structopt(short, long, parse(from_os_str))]
-    pub (crate) config: Option<PathBuf>,
-
-    /// Audio device to use
-    #[structopt(short, long)]
-    device: Option<String>,
-
-    /// Audio device sample rate
-    #[structopt(short, long)]
-    rate: Option<u32>,
-
-    /// Audio device bit depth
-    #[structopt(short, long)]
-    format: Option<u8>,
-
-    /// Audio frequency range to process and display
-    /// <low high>
-    #[structopt(
-        short="F", long,
-        min_values=2,
-        max_values=2)
-    ]
-    frequency_range: Option<Vec<u32>>,
-
-    /// Image brightness
-    #[structopt(short="B", long)]
-    brightness: Option<u8>,
-
-    /// Image contrast
-    #[structopt(short="C", long)]
-    contrast: Option<u8>,
-
-    /// Use window dimensions for image export
-    #[structopt(short="w", long="window")]
-    use_window_dimensions: bool,
-
-    /// Pixel dimensions for image export if
-    /// not using window dimensions <width height>
-    /// (see: --window)
-    #[structopt(
-        short="D",
-        long="dimensions",
-        min_values=2,
-        max_values=2,
-        required_if("use_window_dimensions", "false")
-    )]
-    image_dimensions: Option<Vec<u32>>,
-
-    /// Enable image export
-    #[structopt(short="i", long="images")]
-    export_images: bool,
-
-    /// Image export directory
-    #[structopt(short="E", long, parse(from_os_str))]
-    export_path: Option<PathBuf>,
-}
-
-impl Default for Opts {
-    fn default() -> Self {
-        Opts {
-            save_prefs: false,
-            config: None,
-            device: None,
-            rate: None,
-            format: None,
-            frequency_range: None,
-            brightness: None,
-            contrast: None,
-            use_window_dimensions: false,
-            image_dimensions: None,
-            export_images: false,
-            export_path: None,
-        }
-    }
-}
-
-impl Opts {
-    pub fn is_default(&self) -> bool {
-        self == &Opts::default()
-    }
-}
-
 #[derive(Debug)]
 pub enum SettingsError {
     FileError(io::Error),
@@ -280,7 +187,7 @@ impl Settings {
             brightness:                  opts.brightness.unwrap_or(self.brightness),
             contrast:                    opts.contrast.unwrap_or(self.contrast),
             image_use_window_dimensions: opts.use_window_dimensions,
-            image_dimensions: {          // Quicker way to make tuple
+            image_dimensions: {          // Quicker way to make tuple?
                 match opts.image_dimensions {
                     Some(vec) => (vec[0], vec[1]),
                     None => self.image_dimensions}},
