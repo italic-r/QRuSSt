@@ -4,3 +4,4 @@
 *.lock
 *.png
 scratch/**
+/assets/write_test_ok.toml

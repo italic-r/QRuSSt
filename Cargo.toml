@@ -7,14 +7,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gtk =       {version = "0.8.0", features = ["v3_22_30"]}
-gio =       {version = "0.8.0"}
-cpal =      "~0.11.0"
-rodio =     "~0.10.0"
-clap =      "~2.33.0"
-structopt = "~0.3.7"
-serde =     {version = "*", features = ["derive"]}
-ron =       "~0.5.1"
-rustfft =   "~3.0.1"
-sample =    "*"
-gnuplot =   "*"
+shellexpand = "*"
+clap =        "~2.33.0"
+config =      "*"
+serde =       {version = "*", features = ["derive"]}
+toml =        "*"
+gtk =         {version = "0.8.0", features = ["v3_22_30"]}
+gio =         {version = "0.8.0"}
+cpal =        "~0.11.0"
+rustfft =     "~3.0.1"
+sample =      "*"
+gnuplot =     "*"

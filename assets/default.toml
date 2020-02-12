@@ -1,0 +1,29 @@
+debug = false
+
+[audio]
+device = "default"
+rate = 48000
+depth = "i16"
+freq_range = [100, 2800]
+
+[image]
+brightness = 50
+contrast = 50
+dimensions = [1280, 720]
+use_window_dimensions = false
+
+[export]
+path = "~/.local/share/QRuSSt/export/"
+export_enable = true
+single = true
+average = true
+peak = true
+hour = true
+day = true
+
+[names]
+single = "single"
+average = "avg"
+peak = "pk"
+hour = "hr"
+day = "day"
