@@ -1,9 +1,9 @@
-debug = false
+verbose = 0
 
 [audio]
 device = "default"
 rate = 48000
-depth = "i16"
+format = "i16"
 freq_range = [100, 2800]
 
 [image]
