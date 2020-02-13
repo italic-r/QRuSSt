@@ -7,3 +7,4 @@ scratch/**
 /assets/write_test_ok.toml
 *swp
 *swo
+*.glade\#

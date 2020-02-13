@@ -11,10 +11,10 @@ use std::sync::mpsc;
 use std::path::PathBuf;
 use std::f32::consts::PI;
 
-use rodio;
 use cpal;
 use cpal::traits::*;
-use structopt::StructOpt;
+
+use shellexpand as se;
 
 use gnuplot::*;
 use sample::{
@@ -48,7 +48,7 @@ fn _gtk_main() {
     let window_about: AboutDialog = builder.get_object("window_about").unwrap();
 
     // Extract widgets
-    let button_about:Button = builder.get_object("button_about").unwrap();
+    let button_about: Button = builder.get_object("button_about").unwrap();
 
     // Connect signals
     button_about.connect_clicked(clone!(window_about => move |_| {
@@ -92,36 +92,6 @@ fn _cpal_main() {
         println!("packet length: {}", pack.len());
         println!("{:?}", pack);
     }
-}
-
-fn _structopt_main() {
-    let mut set = settings::Settings::default();
-    let opts = settings::Opts::from_args(); // TODO: validate args?
-    if let Some(c) = opts.clone().config {
-        set.config_path = c;
-    }
-    if let Some(e) = set.read_config().err() {
-        // Warning dialog box (with file chooser?)
-        println!("Read Error: {:?}", e);
-    }
-    if !opts.is_default() {
-        if let Some(e) = set.set_override(opts.clone()).err() {
-            println!("Override Error: {:?}", e);
-        };
-    } else {
-        println!("No overrides. Continuing.");
-    }
-
-    println!("Settings: {:#?}", set);
-
-    if opts.save_prefs {
-        println!("Writing prefs...");
-        if let Some(e) = set.write_config().err() {
-            println!("Settings write error: {:?}", e);
-        }
-    }
-
-    // _cpal_main();
 }
 
 fn _clap_main() {
@@ -264,5 +234,5 @@ fn hann_window(window_length: usize) -> Vec<f32> {
 }
 
 fn main() {
-    _fft_main();
+    _clap_main();
 }

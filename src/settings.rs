@@ -1,50 +1,54 @@
+#![allow(unused_variables)]
+#![allow(non_camel_case_types)]
+
 use std::io;
 use std::io::prelude::*;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::num::ParseIntError;
+use std::convert::Infallible;
 
 use clap;
 use clap::clap_app;
-use structopt::StructOpt;
+
+use shellexpand as se;
+use config::{Config, ConfigError, File as cFile, Source, Value};
+
+use toml;
 use serde::{Serialize, Deserialize};
-use ron::{
-    ser::{PrettyConfig, to_string_pretty},
-    de::{from_reader, from_str},
-};
+
 use cpal;
 use cpal::traits::*;
 
 
 pub fn clap_args() -> clap::ArgMatches<'static> {
-    // closure from clap docs
-    let path_exists = |path| {
-        if std::fs::metadata(path).is_ok() {
+    let path_exists = |path: String| {
+        if se::full(&path).is_ok() {
             Ok(())
         } else {
             Err(String::from("File does not exist"))
         }
     };
     let f_range = |range: String| {
-        if let Ok(val) = range.parse::<u32>() {
+        if let Ok(val) = range.parse::<u16>() {
             if val <= 3000 {
                 Ok(())
             } else {
                 Err(String::from("Maximum range: 0-3000"))
             }
         } else {
-            Err(String::from("Positive integer inputs only."))
+            Err(String::from("Positive integer inputs only"))
         }
     };
     let d_range = |range: String| {
         if range.parse::<u32>().is_ok() {
             Ok(())
         } else {
-            Err(String::from("Integer values only."))
+            Err(String::from("Integer values only"))
         }
     };
     let C_B_range = |val: String| {
-        if let Ok(v) = val.parse::<u32>() {
+        if let Ok(v) = val.parse::<u8>() {
             if v <= 100 {
                 Ok(())
             } else {
@@ -64,8 +68,9 @@ pub fn clap_args() -> clap::ArgMatches<'static> {
 
     clap_app!(QRuSSt =>
         (about: "A QRSS processor using audio input from a sound card or SDR demodulator")
+        (@arg verbose:         -v --verbose         ...                                                             "stdout verbosity (can be passed up to twice)"                    )
         (@arg save_prefs:      -s --("save-prefs")               display_order(1)                                   "Write given arguments to config file"                            )
-        (@arg config:          -c --config          [FILE]       display_order(1) number_of_values(1) {path_exists} "Path to config file (default: ~/.config/QRuSSt/config)"          )
+        (@arg config:          -c --config          [FILE]       display_order(1) number_of_values(1) {path_exists} "Path to config file (default: ~/.config/QRuSSt/config.toml)"     )
 
         (@arg window:          -w --window                       display_order(4)                                   "Use window dimensions for image export"                          )
         (@arg dimensions:      -D --dimensions      [X] [Y]      display_order(3) number_of_values(2) {d_range}     "Pixel dimensions for export (see --window)"                      )
@@ -88,125 +93,289 @@ pub fn clap_args() -> clap::ArgMatches<'static> {
 
 #[derive(Debug)]
 pub enum SettingsError {
-    FileError(io::Error),
-    SerialReadError(ron::de::Error),
-    SerialWriteError(ron::ser::Error),
-    OverrideError(String),
+    ConfigError(ConfigError),    // config::ConfigError
+    ReadError(std::io::Error),   // file read error
+    WriteError(std::io::Error),  // file write error
+    DeserError(toml::de::Error), // data deserialize error
+    SerError(toml::ser::Error),  // data serialize error
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum AudioFormat {
+    i16,
+    u16,
+    f32,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Audio {
+    pub device:      String,
+    pub rate:        u32,
+    pub format:      AudioFormat,
+    pub freq_range: (u16, u16),
+}
+
+impl Default for Audio {
+    fn default() -> Self {
+        Audio {
+            device:     "default".to_string(),
+            rate:        48000,
+            format:      AudioFormat::i16,
+            freq_range: (100, 2800),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Image {
+    pub brightness:            u8,
+    pub contrast:              u8,
+    pub dimensions:           (u16, u16),
+    pub use_window_dimensions: bool,
+}
+
+impl Default for Image {
+    fn default() -> Self {
+        Image {
+            brightness:            50,
+            contrast:              50,
+            dimensions:           (1280, 720),
+            use_window_dimensions: false,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Export {
+    pub path:          PathBuf,
+    pub export_enable: bool,
+    pub single:        bool,
+    pub average:       bool,
+    pub peak:          bool,
+    pub hour:          bool,
+    pub day:           bool,
+}
+
+impl Default for Export {
+    fn default() -> Self {
+        Export {
+            path: (*se::full("~/.local/share/QRuSSt/export/").unwrap()).into(),
+            export_enable: true,
+            single: true,
+            average: true,
+            peak: true,
+            hour: true,
+            day: true,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct Names {
+    pub single:  String,
+    pub average: String,
+    pub peak:    String,
+    pub hour:    String,
+    pub day:     String,
+}
+
+impl Default for Names {
+    fn default() -> Self {
+        Names {
+            single:   "single" .to_string(),
+            average:  "avg"    .to_string(),
+            peak:     "pk"     .to_string(),
+            hour:     "hr"     .to_string(),
+            day:      "day"    .to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Settings {
-    pub config_path:                 PathBuf,
-    pub audio_device:                String,
-    pub ad_rate:                     u32,
-    pub ad_depth:                    u8,
-    pub freq_range:                 (u32, u32),
-    pub brightness:                  u8,
-    pub contrast:                    u8,
-    pub image_use_window_dimensions: bool,
-    pub image_dimensions:           (u32, u32),
-    pub export_images:               bool,
-    pub export_single:               bool,
-    pub export_avg:                  bool,
-    pub export_pk:                   bool,
-    pub export_hr:                   bool,
-    pub export_day:                  bool,
-    pub single_name:                 String,
-    pub avg_name:                    String,
-    pub pk_name:                     String,
-    pub hr_name:                     String,
-    pub day_name:                    String,
-    pub export_path:                 PathBuf,
+    pub verbose: u8,
+    pub config:  PathBuf,
+    pub audio:   Audio,
+    pub image:   Image,
+    pub export:  Export,
+    pub names:   Names,
+}
+
+impl Settings {
+    pub fn read_config(&mut self) -> Result<(), SettingsError> {
+        let mut s = Config::new();
+        s.merge(Config::try_from(&self)
+            .map_err(SettingsError::ConfigError)?)
+            .map_err(SettingsError::ConfigError)?;
+        if let Some(buf) = &self.config.to_str() {
+            let c_file = cFile::with_name(buf);
+            s.merge(c_file).map_err(SettingsError::ConfigError)?;
+        }
+        *self = s.try_into().map_err(SettingsError::ConfigError)?;
+        Ok(())
+    }
+
+    pub fn write_config(&self) -> Result<(), SettingsError> {
+        let mut file = OpenOptions::new().write(true).create(true).open(&self.config).map_err(SettingsError::WriteError)?;
+        let coded = toml::to_string(self).map_err(SettingsError::SerError)?;
+        file.write_all(format!("{}", coded).as_bytes()).map_err(SettingsError::WriteError)?;
+        Ok(())
+    }
+
+    pub fn arg_override(&mut self, cli: clap::ArgMatches) -> Result<(), Infallible> {
+        self.verbose = match cli.occurrences_of("verbose") {
+            0     => 0,
+            1     => 1,
+            2 | _ => 2,
+        };
+
+        // process outside of this method
+        // if cli.is_present("save_prefs") { }
+
+        if let Some(c) = cli.value_of("config") {
+            self.config = c.into();
+        }
+
+        self.image.use_window_dimensions = cli.is_present("window");
+
+        if let Some(d) = cli.values_of("dimensions") {
+            // requires two args, so direct conversion is ok here
+            let d: Vec<u16> = d.map(|x| x.parse().unwrap()).collect();
+            self.image.dimensions = (d[0], d[1]);
+        }
+
+        if let Some(b) = cli.value_of("brightness") {
+            self.image.brightness = b.parse().unwrap();
+        }
+
+        if let Some(c) = cli.value_of("contrast") {
+            self.image.contrast = c.parse().unwrap();
+        }
+
+        self.export.export_enable = cli.is_present("export_images");
+
+        if let Some(path) = cli.value_of("export_path") {
+            self.export.path = path.into();
+        }
+
+        if let Some(dev) = cli.value_of("device") {
+            self.audio.device = dev.into();
+        }
+
+        // Value already checked against parse. Safe to unwrap.
+        if let Some(freq) = cli.values_of("frequency_range") {
+            let mut freq: Vec<u16> = freq.map(|x| x.parse().unwrap()).collect();
+            freq.sort_unstable();
+            self.audio.freq_range = (freq[0], freq[1]);
+        }
+
+        // Valid options given in help message. Clap prevents others.
+        if let Some(f) = cli.value_of("format") {
+            self.audio.format = match f {
+                "u16" => AudioFormat::u16,
+                "i16" => AudioFormat::i16,
+                "f32" => AudioFormat::f32,
+                _     => unreachable!(),
+            };
+        }
+
+        // Valid options given in help message. Parse directly into u32.
+        if let Some(r) = cli.value_of("rate") {
+            self.audio.rate = r.parse().unwrap();
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            config_path:                 PathBuf::from("~/.config/QRuSSt/config"),
-            audio_device:                String::new(),
-            ad_rate:                     48000,
-            ad_depth:                    16,
-            freq_range:                 (400, 800),
-            brightness:                  50,
-            contrast:                    50,
-            image_use_window_dimensions: false,
-            image_dimensions:           (1280, 720),
-            export_images:               true,
-            export_single:               true,
-            export_avg:                  true,
-            export_pk:                   true,
-            export_hr:                   true,
-            export_day:                  true,
-            single_name:                 String::from("single"),
-            avg_name:                    String::from("avg"),
-            pk_name:                     String::from("pk"),
-            hr_name:                     String::from("hour"),
-            day_name:                    String::from("day"),
-            export_path:                 PathBuf::from("~/.local/share/QRuSSt/export/"),
+            verbose: 0,
+            config:  (*se::full("~/.config/QRuSSt/config.toml").unwrap()).into(),
+            audio:   Audio::default(),
+            image:   Image::default(),
+            export:  Export::default(),
+            names:   Names::default(),
         }
     }
 }
 
-/// Implement read/write/override methods for settings.
-/// Serialize to RON format for storage.
-impl Settings {
-    pub fn read_config(&mut self) ->  Result<(), SettingsError> {
-        let f = File::open(&self.config_path)
-            .map_err(SettingsError::FileError)?;
-        let d = from_reader(f)
-            .map_err(SettingsError::SerialReadError)?;
-        *self = d;
-        Ok(())
-    }
 
-    pub fn write_config(&self) -> Result<(), SettingsError> {
-        let mut f = File::open(&self.config_path)
-            .map_err(SettingsError::FileError)?;
-        let s = to_string_pretty(&self, PrettyConfig::default())
-            .map_err(SettingsError::SerialWriteError)?;
-        f.write_all(&s.as_bytes())
-            .map_err(SettingsError::FileError)?;
-        Ok(())
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn default_settings() {
+        let config_path: PathBuf = (*se::full("~/.config/QRuSSt/config.toml").unwrap()).into();
+        let export_path: PathBuf = (*se::full("~/.local/share/QRuSSt/export/").unwrap()).into();
+        let def = Settings::default();
+        assert_eq!(def,
+            Settings {
+                verbose: 0,
+                config: config_path.into(),
+                audio: Audio {
+                    device: "default".to_string(),
+                    rate: 48000,
+                    format: AudioFormat::i16,
+                    freq_range: (100, 2800),
+                },
+                image: Image {
+                    brightness: 50,
+                    contrast: 50,
+                    dimensions: (1280, 720),
+                    use_window_dimensions: false,
+                },
+                export: Export {
+                    path: export_path.into(),
+                    export_enable: true,
+                    single: true,
+                    average: true,
+                    peak: true,
+                    hour: true,
+                    day: true,
+                },
+                names: Names {
+                    single: "single".to_string(),
+                    average: "avg".to_string(),
+                    peak: "pk".to_string(),
+                    hour: "hr".to_string(),
+                    day: "day".to_string(),
+                },
+            }
+        );
     }
+    #[test]
+    fn config_read() {
+        let mut def = Settings::default();
+        def.config = "assets/default.toml".into();
+        let read_ok = def.read_config();
+        assert!(read_ok.is_ok());
 
-    pub fn set_override(&mut self, opts: Opts) -> Result<(), SettingsError> { // Use SettingsError?
-        if opts.is_default() {
-            return Err(SettingsError::OverrideError(
-                "Settings override error. Overrides are default. Skipping."
-                .to_string()));
-        }
-        *self = Settings {
-            config_path:                 opts.config.unwrap_or(self.config_path.clone()),
-            audio_device:                opts.device.unwrap_or(self.audio_device.clone()),
-            ad_rate:                     opts.rate.unwrap_or(self.ad_rate),
-            ad_depth:                    opts.format.unwrap_or(self.ad_depth),
-            freq_range: {                // Quicker way to make tuple?
-                match opts.frequency_range {
-                    Some(vec) => (vec[0], vec[1]),
-                    None => self.freq_range}},
-            brightness:                  opts.brightness.unwrap_or(self.brightness),
-            contrast:                    opts.contrast.unwrap_or(self.contrast),
-            image_use_window_dimensions: opts.use_window_dimensions,
-            image_dimensions: {          // Quicker way to make tuple?
-                match opts.image_dimensions {
-                    Some(vec) => (vec[0], vec[1]),
-                    None => self.image_dimensions}},
-            export_images:               opts.export_images,
-            export_single:               self.export_single,
-            export_avg:                  self.export_avg,
-            export_pk:                   self.export_pk,
-            export_hr:                   self.export_hr,
-            export_day:                  self.export_day,
-            single_name:                 self.single_name.clone(),
-            avg_name:                    self.avg_name.clone(),
-            pk_name:                     self.pk_name.clone(),
-            hr_name:                     self.hr_name.clone(),
-            day_name:                    self.day_name.clone(),
-            export_path:                 opts.export_path.unwrap_or(self.export_path.clone()),
-        };
-        Ok(())
+        def.config = "assets/no_file.toml".into();
+        let read_err = def.read_config();
+        assert!(read_err.is_err());
+    }
+    #[test]
+    fn config_write() {
+        let mut def = Settings::default();
+        def.config = "assets/write_test_ok.toml".into();
+        let write_ok = def.write_config();
+        assert!(write_ok.is_ok());
+
+        def.config = "/write_test_err.toml".into();
+        let write_err = def.write_config();
+        assert!(write_err.is_err());
+    }
+    #[test]
+    #[ignore]
+    fn arg_override() {
+        let mut set = Settings::default();
+        let args = clap_args();
+        set.arg_override(args);
     }
 }
+
 
 // SETTINGS INIT
 // set default settings
@@ -219,6 +388,7 @@ impl Settings {
 // open audio file
 // send stream to fft processor
 // fft process
+// rescale fft data
 
 // IMAGE OUTPUT
 // write to image
@@ -230,3 +400,4 @@ impl Settings {
 // set prefs (following settings init above)
 // populate gtk fields/options
 // open gtk window
+// start processing
