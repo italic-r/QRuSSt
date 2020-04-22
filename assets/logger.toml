@@ -1,0 +1,6 @@
+type =            "terminal"
+format =          "compact"
+source_location = "module_and_line"
+timezone =        "utc"
+level =           "debug"
+destination =     "stderr"
