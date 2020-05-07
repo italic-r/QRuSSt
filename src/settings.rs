@@ -50,7 +50,7 @@ pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
             Err(String::from("Integer values only"))
         }
     };
-    let C_B_range = |val: String| {
+    let c_b_range = |val: String| {
         if let Ok(v) = val.parse::<u8>() {
             if v <= 100 {
                 Ok(())
@@ -78,7 +78,7 @@ pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
         (@arg window:          -w --window                       display_order(4)                                   "Use window dimensions for image export"                          )
         (@arg dimensions:      -D --dimensions      [X] [Y]      display_order(3) number_of_values(2) {d_range}     "Pixel dimensions for export (see --window)"                      )
         (@arg brightness:      -B --brightness      [NUM]        display_order(3) number_of_values(1)               "Image brightness (0-100)"                                        )
-        (@arg contrast:        -C --contrast        [NUM]        display_order(3) number_of_values(1) {C_B_range}   "Image contrast (0-100)"                                          )
+        (@arg contrast:        -C --contrast        [NUM]        display_order(3) number_of_values(1) {c_b_range}   "Image contrast (0-100)"                                          )
 
         (@arg export_images:   -i --images                       display_order(3)                                   "Enable image export"                                             )
         (@arg export_path:     -E --("export-path") [DIR]        display_order(4) number_of_values(1) {path_exists} "Image export directory (default: ~/.local/share/QRuSSt/export/)" )
