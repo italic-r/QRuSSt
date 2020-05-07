@@ -3,16 +3,15 @@
 
 use std::io;
 use std::io::prelude::*;
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::path::PathBuf;
-use std::num::ParseIntError;
 use std::convert::Infallible;
 
 use clap;
 use clap::clap_app;
 
 use shellexpand as se;
-use config::{Config, ConfigError, File as cFile, Source, Value};
+use config::{Config, ConfigError, File as cFile};
 
 use toml;
 use serde::{Serialize, Deserialize};
@@ -21,7 +20,7 @@ use cpal;
 use cpal::traits::*;
 
 
-pub fn clap_args() -> clap::ArgMatches<'static> {
+pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
     let path_exists = |path: String| {
         if se::full(&path).is_ok() {
             Ok(())
@@ -31,18 +30,22 @@ pub fn clap_args() -> clap::ArgMatches<'static> {
     };
     let f_range = |range: String| {
         if let Ok(val) = range.parse::<u16>() {
-            if val <= 3000 {
+            if val <= 3000 && val >= 50 {
                 Ok(())
             } else {
-                Err(String::from("Maximum range: 0-3000"))
+                Err(String::from("Maximum range: 50-3000"))
             }
         } else {
             Err(String::from("Positive integer inputs only"))
         }
     };
     let d_range = |range: String| {
-        if range.parse::<u32>().is_ok() {
-            Ok(())
+        if let Ok(val) = range.parse::<u32>() {
+            if val >= 480 && val <= 3000 {
+                Ok(())
+            } else {
+                Err(String::from("Width range: 640-3000. Height range: 480-3000."))
+            }
         } else {
             Err(String::from("Integer values only"))
         }
@@ -92,23 +95,58 @@ pub fn clap_args() -> clap::ArgMatches<'static> {
 }
 
 #[derive(Debug)]
-pub enum SettingsError {
+pub (crate) enum SettingsError {
     ConfigError(ConfigError),    // config::ConfigError
-    ReadError(std::io::Error),   // file read error
-    WriteError(std::io::Error),  // file write error
+    ReadError(io::Error),   // file read error
+    WriteError(io::Error),  // file write error
     DeserError(toml::de::Error), // data deserialize error
     SerError(toml::ser::Error),  // data serialize error
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub enum AudioFormat {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub (crate) enum FftWindowType {
+    Rectangle,
+    Cosine,
+    Triangle,
+    Hann,
+    Blackman,
+    Hamming,
+    Nuttall,
+    Flat,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub (crate) struct Fft {
+    pub fft_size: u32,
+    pub window_type: FftWindowType,
+}
+
+impl Default for Fft {
+    fn default() -> Self {
+        Fft {
+            fft_size: 32768,
+            window_type: FftWindowType::Hann,
+        }
+    }
+}
+
+/*
+fn hann_window(window_length: usize) -> Vec<f32> {
+    (0..window_length).map(|n|
+        (0.5 - (0.5 * (PI * n as f32 * 2. / (window_length as f32 - 1.)).sin())) * 2.
+    ).collect()
+}
+*/
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub (crate) enum AudioFormat {
     i16,
     u16,
     f32,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Audio {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub (crate) struct Audio {
     pub device:      String,
     pub rate:        u32,
     pub format:      AudioFormat,
@@ -126,12 +164,12 @@ impl Default for Audio {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Image {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub (crate) struct Image {
     pub brightness:            u8,
     pub contrast:              u8,
     pub dimensions:           (u16, u16),
-    pub use_window_dimensions: bool,
+    pub use_window_xy: bool,
 }
 
 impl Default for Image {
@@ -140,13 +178,13 @@ impl Default for Image {
             brightness:            50,
             contrast:              50,
             dimensions:           (1280, 720),
-            use_window_dimensions: false,
+            use_window_xy: false,
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Export {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub (crate) struct Export {
     pub path:          PathBuf,
     pub export_enable: bool,
     pub single:        bool,
@@ -170,8 +208,8 @@ impl Default for Export {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Names {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub (crate) struct Names {
     pub single:  String,
     pub average: String,
     pub peak:    String,
@@ -191,10 +229,11 @@ impl Default for Names {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct Settings {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub (crate) struct Settings {
     pub verbose: u8,
     pub config:  PathBuf,
+    pub fft:     Fft,
     pub audio:   Audio,
     pub image:   Image,
     pub export:  Export,
@@ -216,13 +255,18 @@ impl Settings {
     }
 
     pub fn write_config(&self) -> Result<(), SettingsError> {
-        let mut file = OpenOptions::new().write(true).create(true).open(&self.config).map_err(SettingsError::WriteError)?;
-        let coded = toml::to_string(self).map_err(SettingsError::SerError)?;
-        file.write_all(format!("{}", coded).as_bytes()).map_err(SettingsError::WriteError)?;
+        let mut file = OpenOptions::new()
+            .write(true).create(true)
+            .open(&self.config)
+            .map_err(SettingsError::WriteError)?;
+        let coded = toml::to_string(self)
+            .map_err(SettingsError::SerError)?;
+        file.write_all(format!("{}", coded).as_bytes())
+            .map_err(SettingsError::WriteError)?;
         Ok(())
     }
 
-    pub fn arg_override(&mut self, cli: clap::ArgMatches) -> Result<(), Infallible> {
+    pub fn arg_override(&mut self, cli: &clap::ArgMatches) -> Result<(), Infallible> {
         self.verbose = match cli.occurrences_of("verbose") {
             0     => 0,
             1     => 1,
@@ -236,7 +280,7 @@ impl Settings {
             self.config = c.into();
         }
 
-        self.image.use_window_dimensions = cli.is_present("window");
+        self.image.use_window_xy = cli.is_present("window");
 
         if let Some(d) = cli.values_of("dimensions") {
             // requires two args, so direct conversion is ok here
@@ -293,6 +337,7 @@ impl Default for Settings {
         Settings {
             verbose: 0,
             config:  (*se::full("~/.config/QRuSSt/config.toml").unwrap()).into(),
+            fft:     Fft::default(),
             audio:   Audio::default(),
             image:   Image::default(),
             export:  Export::default(),
@@ -314,6 +359,10 @@ mod tests {
             Settings {
                 verbose: 0,
                 config: config_path.into(),
+                fft: Fft {
+                    fft_size: 32768,
+                    window_type: FftWindowType::Hann,
+                },
                 audio: Audio {
                     device: "default".to_string(),
                     rate: 48000,
@@ -324,7 +373,7 @@ mod tests {
                     brightness: 50,
                     contrast: 50,
                     dimensions: (1280, 720),
-                    use_window_dimensions: false,
+                    use_window_xy: false,
                 },
                 export: Export {
                     path: export_path.into(),
@@ -368,36 +417,9 @@ mod tests {
         assert!(write_err.is_err());
     }
     #[test]
-    #[ignore]
     fn arg_override() {
         let mut set = Settings::default();
         let args = clap_args();
-        set.arg_override(args);
+        assert!(set.arg_override(&args).is_ok());
     }
 }
-
-
-// SETTINGS INIT
-// set default settings
-// read config settings
-// read cli args (+ make permanent?)
-// OUTPUT settings struct
-
-// AUDIO
-// get audio device
-// open audio file
-// send stream to fft processor
-// fft process
-// rescale fft data
-
-// IMAGE OUTPUT
-// write to image
-// save image
-
-
-// PROGRAM OP
-// init gtk
-// set prefs (following settings init above)
-// populate gtk fields/options
-// open gtk window
-// start processing

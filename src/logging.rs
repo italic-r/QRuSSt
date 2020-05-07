@@ -1,5 +1,4 @@
 use std::fs::OpenOptions;
-use std::io::BufReader;
 use std::io::prelude::*;
 
 use slog;
@@ -10,7 +9,6 @@ use sloggers::{
 };
 
 use toml;
-use serde::{Serialize, Deserialize};
 
 use shellexpand as se;
 
@@ -37,7 +35,6 @@ pub (crate) fn set_logger() -> slog::Logger {
     }
 
     let config: LoggerConfig = toml::from_str(&cfg).unwrap();
-    let builder = config.try_to_builder().unwrap();
-    let logger = builder.build().unwrap();
-    logger
+    config.try_to_builder().unwrap()
+        .build().unwrap()
 }

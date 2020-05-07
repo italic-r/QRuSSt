@@ -1,26 +1,28 @@
-#![allow(non_snake_case)]
-#![allow(unused_imports)]
+mod gui;
+mod settings;
+mod logging;
+use logging::set_logger;
 
 #[macro_use]
-mod macros;
-mod settings;
+extern crate slog;
 
-// external crate imports
+// std
+use std::sync::{Arc, Mutex};
+use std::rc::Rc;
 use std::thread;
 use std::sync::mpsc;
-use std::path::PathBuf;
-use std::f32::consts::PI;
 
+// Audio
 use cpal;
 use cpal::traits::*;
 
-use shellexpand as se;
+// use shellexpand as se;
 
+// Data processing
+/*
 use gnuplot::*;
-use sample::{
-    signal,
-    Signal
-};
+*/
+// use sample::{signal, Signal};
 use rustfft::{
     FFT,
     FFTplanner,
@@ -29,38 +31,8 @@ use rustfft::{
     num_traits::Zero
 };
 
-use gtk::{AboutDialog, ApplicationWindow, Builder, Button};
-use gtk::prelude::*;
-use gio::prelude::*;
 
-
-fn _gtk_main() {
-    if gtk::init().is_err() {
-        println!("GTK+ init failure.");
-        return;
-    }
-
-    // Read in UI template
-    let builder = Builder::new_from_file("assets/QRuSSt.glade");
-
-    // Windows
-    let window_main: ApplicationWindow = builder.get_object("window_main").unwrap();
-    let window_about: AboutDialog = builder.get_object("window_about").unwrap();
-
-    // Extract widgets
-    let button_about: Button = builder.get_object("button_about").unwrap();
-
-    // Connect signals
-    button_about.connect_clicked(clone!(window_about => move |_| {
-        window_about.run();
-        window_about.hide();
-    }));
-
-    // Finalize GTK+, show window, run program
-    window_main.show_all();
-    gtk::main();
-}
-
+/*
 fn _cpal_main() {
     let (tx, rx) = mpsc::channel();
 
@@ -92,11 +64,6 @@ fn _cpal_main() {
         println!("packet length: {}", pack.len());
         println!("{:?}", pack);
     }
-}
-
-fn _clap_main() {
-    let opts = settings::clap_args(); // validate args
-    println!("{:#?}", opts);
 }
 
 fn _fft_main() {
@@ -132,10 +99,10 @@ fn _fft_main() {
     let mut output = vec![Zero::zero(); samp_len];
 
     // window filter on input data before FFT
-    let _hann = hann_window(inp.len());
-    for i in 0..inp.len() {
-        inp[i] *= _hann[i];
-    }
+    // let _hann = hann_window(inp.len());
+    // for i in 0..inp.len() {
+    //     inp[i] *= _hann[i];
+    // }
 
     // automatic fft
     let mut planner = FFTplanner::new(fft_inverse);
@@ -157,6 +124,7 @@ fn _fft_main() {
             &[]);
     fg.show().unwrap();
 }
+*/
 
 fn _cpal_fft() {
     let fft_inverse = false;
@@ -213,26 +181,72 @@ fn _cpal_fft() {
 
     let mut normalized: Vec<f32> = output.iter().map(|val| val.norm() / (fft.len() as f32)).collect();
     normalized.truncate(f_high);
+    println!("{:?}", normalized);
 
     // GNUPLOT
     // requires simple data, no Complex<T>
-    let mut fg = gnuplot::Figure::new();
-    fg.axes2d()
-        .set_title("fft", &[])
-        .lines(
-            0..f_high,
-            &normalized[0..f_high],
-            &[]);
-    fg.show().unwrap();
-    println!("{:?}", normalized);
-}
-
-fn hann_window(window_length: usize) -> Vec<f32> {
-    (0..window_length).map(|n|
-        (0.5 - (0.5 * (PI * n as f32 * 2. / (window_length as f32 - 1.)).sin())) * 2.
-    ).collect()
+    // let mut fg = gnuplot::Figure::new();
+    // fg.axes2d()
+    //     .set_title("fft", &[])
+    //     .lines(
+    //         0..f_high,
+    //         &normalized[0..f_high],
+    //         &[]);
+    // fg.show().unwrap();
 }
 
 fn main() {
-    _clap_main();
+    // Set up logger
+    let logger = Rc::new(set_logger());
+
+    // Read settings
+    let opts = settings::clap_args();
+    let mut set = Arc::new(Mutex::new(settings::Settings::default()));
+    if let Some(c) = opts.value_of("config") {
+        let mut set = set.lock().unwrap();
+        set.config = c.into();
+    }
+    {
+        let mut set = set.lock().unwrap();
+
+        if set.read_config().is_err() {
+            error!(logger, "Error reading config");
+        }
+        if set.arg_override(&opts).is_err() {
+            error!(logger, "Error overriding config");
+        }
+        if opts.is_present("save_prefs") {
+            if set.write_config().is_err() {
+                error!(logger, "Error writing config");
+            }
+        }
+    }
+
+    // Set up GTK widgets with settings
+    // Set up threads
+    // Run GTK
+    gui::build_gtk(&mut set, &logger);
+    gtk::main();
+
+    debug!(logger, "Quit success");
 }
+
+
+// AUDIO
+// get audio device
+// open audio file
+// send stream to fft processor
+// fft process
+// rescale fft data
+
+// IMAGE OUTPUT
+// write to image
+// save image
+
+
+// PROGRAM OP
+// init gtk
+// set prefs (following settings init above)
+// populate gtk fields/options
+// open gtk window
+// start processing
