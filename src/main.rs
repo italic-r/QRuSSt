@@ -1,7 +1,12 @@
+//! QRuSSt is an application to listen to weak radio signals in the audio domain.
+//!
+//! QRuSSt takes audio from a radio receiver and visualizes the audio spectrum in an image. Using
+//! the FFT algorithm, a user may see a signal otherwise inaudible over the air.
+
+
 mod gui;
 mod settings;
 mod logging;
-use logging::set_logger;
 
 #[macro_use]
 extern crate slog;
@@ -197,7 +202,7 @@ fn _cpal_fft() {
 
 fn main() {
     // Set up logger
-    let logger = Rc::new(set_logger());
+    let logger = Rc::new(logging::set_logger());
 
     // Read settings
     let opts = settings::clap_args();
@@ -226,27 +231,14 @@ fn main() {
     // Set up threads
     // Run GTK
     gui::build_gtk(&mut set, &logger);
+
+    // tx, rx, send tx to audio capture thread
+    // capture thread sends data to fft process thread
+    // fft process thread writes processed data to Mutex<Vec<fft_data>>
+    // image rendering thread processes Mutex<Vec<fft_data>> into image (redraw whole image with
+    //     current-time cursor and time marker ticks)
+
     gtk::main();
 
     debug!(logger, "Quit success");
 }
-
-
-// AUDIO
-// get audio device
-// open audio file
-// send stream to fft processor
-// fft process
-// rescale fft data
-
-// IMAGE OUTPUT
-// write to image
-// save image
-
-
-// PROGRAM OP
-// init gtk
-// set prefs (following settings init above)
-// populate gtk fields/options
-// open gtk window
-// start processing
