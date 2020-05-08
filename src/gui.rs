@@ -11,11 +11,11 @@ use gtk::{
     ApplicationWindow,
     Builder,
     Button,
-    CellRendererText,
     CheckButton,
     ComboBox,
     Entry,
     FileChooserButton,
+    ListStore,
     Popover,
     SpinButton,
 };
@@ -27,7 +27,7 @@ use slog;
 
 // Audio
 use cpal;
-// use cpal::traits::*;
+use cpal::traits::*;
 
 pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog::Logger) {
     if gtk::init().is_err() {
@@ -46,7 +46,7 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
     // Extract Widgets
     let button_about:    Button            = builder.get_object("button_about").unwrap();
     let button_help:     Button            = builder.get_object("button_help").unwrap();
-    let button_options:  Button            = builder.get_object("button_options").unwrap();
+    let _button_options: Button            = builder.get_object("button_options").unwrap();
 
     // Extract Settings
     let combo_devices:   ComboBox          = builder.get_object("combo_devices").unwrap();
@@ -76,6 +76,10 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
 
     let file_chooser:    FileChooserButton = builder.get_object("settings_filechooser").unwrap();
 
+    // Extract internal lists
+    let list_devices:    ListStore         = builder.get_object("dev_list").unwrap();
+    let entry_dev:      Entry             = builder.get_object("dev_list_entry").unwrap();
+
     // Connect signals
     button_about.connect_clicked(clone!(@strong logger, @strong window_about
             => move |_| {
@@ -89,14 +93,17 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
         debug!(logger, "Help clicked");
     }));
 
-    let combo_renderer = CellRendererText::new();
-    combo_devices.add_attribute(&combo_renderer, "text", 0);
-    // combo_devices.connect_popup(clone!(@strong logger, @strong set,
-    //         @strong combo_devices
-    //         => move |_| {
-    //     debug!(logger, "Device menu opened");
-    //     debug!(logger, "{:?}", combo_devices.get_active());
-    // }));
+    combo_devices.connect_changed(clone!(@strong logger,
+            @strong combo_devices
+            => move |_| {
+        debug!(logger, "ComboBox index: {:?}", combo_devices.get_active());
+    }));
+
+    entry_dev.connect_changed(clone!(@strong logger,
+            @strong entry_dev
+            => move |_| {
+        debug!(logger, "Selected entry: {:?}", entry_dev.get_text().unwrap().as_str());
+    }));
 
     check_export.connect_toggled(clone!(@strong logger, @strong set,
             @strong check_export
@@ -260,22 +267,17 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
     }));
 
     window_settings.connect_show(clone!(@strong logger,
-            @strong combo_devices
+            @strong list_devices
             => move |_| {
         debug!(logger, "Settings opened");
-
-        // TODO: retrieve audio devices and store into selectable list
-        // let host = cpal::default_host();
-        // let devices: Vec<cpal::Device> = host.devices().unwrap().collect();
-
-        // let col_types: [glib::Type; 1] = [glib::Type::String];
-        // let list = ListStore::new(&col_types);
-
-        // for d in devices {
-        //     let values: [&dyn ToValue; 1] = [&d.name().unwrap()];
-        //     list.insert_with_values(None, &[0], &values);
-        // }
-        // combo_devices.set_model(Some(&list));
+        list_devices.clear();
+        let host = cpal::default_host();
+        let c_devices: Vec<cpal::Device> = host.devices().unwrap().collect();
+        for dev in c_devices {
+            let name = &dev.name().unwrap();
+            debug!(logger, "{}", name);
+            list_devices.insert_with_values(None, &[0], &[name]);
+        }
     }));
 
     // save prefs at popover close

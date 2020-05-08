@@ -63,6 +63,12 @@ Author: Jeffrey - KI6SGV
     <property name="step_increment">1</property>
     <property name="page_increment">100</property>
   </object>
+  <object class="GtkListStore" id="dev_list">
+    <columns>
+      <!-- column-name name -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkPopover" id="window_settings">
     <property name="can_focus">False</property>
     <child>
@@ -345,17 +351,6 @@ Dimensions</property>
           </packing>
         </child>
         <child>
-          <object class="GtkComboBox" id="combo_devices">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-          </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">0</property>
-            <property name="width">2</property>
-          </packing>
-        </child>
-        <child>
           <object class="GtkLabel" id="label_devices">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
@@ -409,6 +404,26 @@ Dimensions</property>
           <packing>
             <property name="left_attach">1</property>
             <property name="top_attach">3</property>
+            <property name="width">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkComboBox" id="combo_devices">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="model">dev_list</property>
+            <property name="has_entry">True</property>
+            <property name="entry_text_column">0</property>
+            <child internal-child="entry">
+              <object class="GtkEntry" id="dev_list_entry">
+                <property name="can_focus">False</property>
+                <property name="placeholder_text" translatable="yes">Select Device</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">0</property>
             <property name="width">2</property>
           </packing>
         </child>
