@@ -36,6 +36,7 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
     }
 
     // Read in UI template
+    // TODO: ensure asset found during distribution - may need include_str!()
     let builder: Builder = Builder::new_from_file("assets/QRuSSt.glade");
 
     // Windows
@@ -50,6 +51,9 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
 
     // Extract Settings
     let combo_devices:   ComboBox          = builder.get_object("combo_devices").unwrap();
+    let list_devices:    ListStore         = builder.get_object("dev_list").unwrap();
+    let entry_dev:       Entry             = builder.get_object("dev_list_entry").unwrap();
+
     let spin_freq_min:   SpinButton        = builder.get_object("spin_freq_min").unwrap();
     let spin_freq_max:   SpinButton        = builder.get_object("spin_freq_max").unwrap();
 
@@ -76,9 +80,37 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
 
     let file_chooser:    FileChooserButton = builder.get_object("settings_filechooser").unwrap();
 
-    // Extract internal lists
-    let list_devices:    ListStore         = builder.get_object("dev_list").unwrap();
-    let entry_dev:      Entry             = builder.get_object("dev_list_entry").unwrap();
+    // Load settings into UI
+    {
+        let set = set.lock().unwrap();
+        entry_dev.set_text(&set.audio.device);
+        spin_freq_min.set_value(set.audio.freq_range.0 as f64);
+        spin_freq_max.set_value(set.audio.freq_range.1 as f64);
+        spin_brightness.set_value(set.image.brightness as f64);
+        spin_contrast.set_value(set.image.contrast as f64);
+        check_win_xy.set_active(set.image.use_window_xy);
+        spin_width.set_value(set.image.dimensions.0 as f64);
+        spin_height.set_value(set.image.dimensions.1 as f64);
+        check_export.set_active(set.export.export_enable);
+        check_single.set_active(set.export.single);
+        check_average.set_active(set.export.average);
+        check_peak.set_active(set.export.peak);
+        check_hour.set_active(set.export.hour);
+        check_day.set_active(set.export.day);
+        entry_single.set_text(&set.names.single);
+        entry_average.set_text(&set.names.average);
+        entry_peak.set_text(&set.names.peak);
+        entry_hour.set_text(&set.names.hour);
+        entry_day.set_text(&set.names.day);
+        file_chooser.set_uri(&{
+            let name = set.export.path.to_str().unwrap();
+            if name.starts_with("file://") {
+                name.to_string()
+            } else {
+                format!("file://{}", name)
+            }
+        });
+    }
 
     // Connect signals
     button_about.connect_clicked(clone!(@strong logger, @strong window_about
