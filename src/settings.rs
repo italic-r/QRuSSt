@@ -44,7 +44,7 @@ pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
             if val >= 480 && val <= 3000 {
                 Ok(())
             } else {
-                Err(String::from("Width range: 640-3000. Height range: 480-3000."))
+                Err(String::from("Width range: 640-3000. Height range: 480-2000."))
             }
         } else {
             Err(String::from("Integer values only"))

@@ -51,7 +51,7 @@ Author: Jeffrey - KI6SGV
   </object>
   <object class="GtkAdjustment" id="adj_image_height">
     <property name="lower">1</property>
-    <property name="upper">3000</property>
+    <property name="upper">2000</property>
     <property name="value">720</property>
     <property name="step_increment">1</property>
     <property name="page_increment">100</property>
