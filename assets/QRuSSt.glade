@@ -63,9 +63,21 @@ Author: Jeffrey - KI6SGV
     <property name="step_increment">1</property>
     <property name="page_increment">100</property>
   </object>
-  <object class="GtkListStore" id="dev_list">
+  <object class="GtkListStore" id="list_dev">
     <columns>
-      <!-- column-name name -->
+      <!-- column-name device -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="list_format">
+    <columns>
+      <!-- column-name format -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkListStore" id="list_rate">
+    <columns>
+      <!-- column-name rate -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -87,7 +99,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">10</property>
+            <property name="top_attach">12</property>
           </packing>
         </child>
         <child>
@@ -100,7 +112,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">10</property>
+            <property name="top_attach">12</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -115,7 +127,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">9</property>
+            <property name="top_attach">11</property>
           </packing>
         </child>
         <child>
@@ -128,7 +140,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">9</property>
+            <property name="top_attach">11</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -143,7 +155,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">8</property>
+            <property name="top_attach">10</property>
           </packing>
         </child>
         <child>
@@ -156,7 +168,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">8</property>
+            <property name="top_attach">10</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -171,7 +183,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">7</property>
+            <property name="top_attach">9</property>
           </packing>
         </child>
         <child>
@@ -184,7 +196,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">7</property>
+            <property name="top_attach">9</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -199,7 +211,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">6</property>
+            <property name="top_attach">8</property>
           </packing>
         </child>
         <child>
@@ -212,7 +224,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">6</property>
+            <property name="top_attach">8</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -228,7 +240,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">5</property>
+            <property name="top_attach">7</property>
             <property name="width">3</property>
           </packing>
         </child>
@@ -247,7 +259,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">4</property>
+            <property name="top_attach">6</property>
           </packing>
         </child>
         <child>
@@ -265,22 +277,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">2</property>
-            <property name="top_attach">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkFileChooserButton" id="settings_filechooser">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="action">select-folder</property>
-            <property name="preview_widget_active">False</property>
-            <property name="use_preview_label">False</property>
-            <property name="title" translatable="yes">Export To:</property>
-          </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">11</property>
-            <property name="width">2</property>
+            <property name="top_attach">6</property>
           </packing>
         </child>
         <child>
@@ -293,7 +290,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">1</property>
+            <property name="top_attach">3</property>
           </packing>
         </child>
         <child>
@@ -308,18 +305,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_filechooser">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Export To:</property>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">11</property>
+            <property name="top_attach">6</property>
           </packing>
         </child>
         <child>
@@ -333,7 +319,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">1</property>
+            <property name="top_attach">3</property>
           </packing>
         </child>
         <child>
@@ -347,7 +333,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">2</property>
-            <property name="top_attach">1</property>
+            <property name="top_attach">3</property>
           </packing>
         </child>
         <child>
@@ -369,7 +355,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">2</property>
+            <property name="top_attach">4</property>
           </packing>
         </child>
         <child>
@@ -380,7 +366,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">3</property>
+            <property name="top_attach">5</property>
           </packing>
         </child>
         <child>
@@ -391,7 +377,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">2</property>
+            <property name="top_attach">4</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -403,7 +389,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">3</property>
+            <property name="top_attach">5</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -411,19 +397,107 @@ Dimensions</property>
           <object class="GtkComboBox" id="combo_devices">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="model">dev_list</property>
+            <property name="model">list_dev</property>
             <property name="has_entry">True</property>
             <property name="entry_text_column">0</property>
             <child internal-child="entry">
-              <object class="GtkEntry" id="dev_list_entry">
+              <object class="GtkEntry" id="entry_dev">
                 <property name="can_focus">False</property>
-                <property name="placeholder_text" translatable="yes">Select Device</property>
+                <property name="placeholder_text" translatable="yes">Select device...</property>
               </object>
             </child>
           </object>
           <packing>
             <property name="left_attach">1</property>
             <property name="top_attach">0</property>
+            <property name="width">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_filechooser">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Export To:</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">13</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkFileChooserButton" id="settings_filechooser">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="action">select-folder</property>
+            <property name="preview_widget_active">False</property>
+            <property name="use_preview_label">False</property>
+            <property name="title" translatable="yes">Export To:</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">13</property>
+            <property name="width">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_rate">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Device Rate:</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label_format">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Device Format:</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkComboBox" id="combo_rate">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="model">list_rate</property>
+            <property name="has_entry">True</property>
+            <property name="entry_text_column">0</property>
+            <child internal-child="entry">
+              <object class="GtkEntry" id="entry_rate">
+                <property name="can_focus">False</property>
+                <property name="placeholder_text" translatable="yes">Device sample rate...</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">1</property>
+            <property name="width">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkComboBox" id="combo_format">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="model">list_format</property>
+            <property name="has_entry">True</property>
+            <property name="entry_text_column">0</property>
+            <child internal-child="entry">
+              <object class="GtkEntry" id="entry_format">
+                <property name="can_focus">False</property>
+                <property name="placeholder_text" translatable="yes">Device sample format...</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">2</property>
             <property name="width">2</property>
           </packing>
         </child>

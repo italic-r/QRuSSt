@@ -50,9 +50,17 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
     let _button_options: Button            = builder.get_object("button_options").unwrap();
 
     // Extract Settings
-    let combo_devices:   ComboBox          = builder.get_object("combo_devices").unwrap();
-    let list_devices:    ListStore         = builder.get_object("dev_list").unwrap();
-    let entry_dev:       Entry             = builder.get_object("dev_list_entry").unwrap();
+    let _combo_devices:  ComboBox          = builder.get_object("combo_devices").unwrap();
+    let list_devices:    ListStore         = builder.get_object("list_dev").unwrap();
+    let entry_dev:       Entry             = builder.get_object("entry_dev").unwrap();
+
+    let _combo_rate:     ComboBox          = builder.get_object("combo_rate").unwrap();
+    let list_rate:       ListStore         = builder.get_object("list_rate").unwrap();
+    let entry_rate:      Entry             = builder.get_object("entry_rate").unwrap();
+
+    let _combo_format:   ComboBox          = builder.get_object("combo_format").unwrap();
+    let list_format:     ListStore         = builder.get_object("list_format").unwrap();
+    let entry_format:    Entry             = builder.get_object("entry_format").unwrap();
 
     let spin_freq_min:   SpinButton        = builder.get_object("spin_freq_min").unwrap();
     let spin_freq_max:   SpinButton        = builder.get_object("spin_freq_max").unwrap();
@@ -80,36 +88,43 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
 
     let file_chooser:    FileChooserButton = builder.get_object("settings_filechooser").unwrap();
 
+    for e in &["16000", "32000", "44100", "48000", "96000", "19200"] {
+        list_rate.insert_with_values(None, &[0], &[e]);
+    }
+
+    for e in &["i16", "u16", "f32"] {
+        list_format.insert_with_values(None, &[0], &[e]);
+    }
+
     // Load settings into UI
     {
         let set = set.lock().unwrap();
-        entry_dev.set_text(&set.audio.device);
-        spin_freq_min.set_value(set.audio.freq_range.0 as f64);
-        spin_freq_max.set_value(set.audio.freq_range.1 as f64);
-        spin_brightness.set_value(set.image.brightness as f64);
-        spin_contrast.set_value(set.image.contrast as f64);
-        check_win_xy.set_active(set.image.use_window_xy);
-        spin_width.set_value(set.image.dimensions.0 as f64);
-        spin_height.set_value(set.image.dimensions.1 as f64);
-        check_export.set_active(set.export.export_enable);
-        check_single.set_active(set.export.single);
-        check_average.set_active(set.export.average);
-        check_peak.set_active(set.export.peak);
-        check_hour.set_active(set.export.hour);
-        check_day.set_active(set.export.day);
-        entry_single.set_text(&set.names.single);
-        entry_average.set_text(&set.names.average);
-        entry_peak.set_text(&set.names.peak);
-        entry_hour.set_text(&set.names.hour);
-        entry_day.set_text(&set.names.day);
-        file_chooser.set_uri(&{
-            let name = set.export.path.to_str().unwrap();
-            if name.starts_with("file://") {
-                name.to_string()
-            } else {
-                format!("file://{}", name)
-            }
+        entry_dev      .set_text(&set.audio.device);
+        entry_rate     .set_text(&format!("{}", set.audio.rate));
+        entry_format   .set_text(match &set.audio.format {
+            settings::AudioFormat::i16 => "i16",
+            settings::AudioFormat::u16 => "u16",
+            settings::AudioFormat::f32 => "f32",
         });
+        spin_freq_min  .set_value(set.audio.freq_range.0 as f64);
+        spin_freq_max  .set_value(set.audio.freq_range.1 as f64);
+        spin_brightness.set_value(set.image.brightness as f64);
+        spin_contrast  .set_value(set.image.contrast as f64);
+        check_win_xy   .set_active(set.image.use_window_xy);
+        spin_width     .set_value(set.image.dimensions.0 as f64);
+        spin_height    .set_value(set.image.dimensions.1 as f64);
+        check_export   .set_active(set.export.export_enable);
+        check_single   .set_active(set.export.single);
+        check_average  .set_active(set.export.average);
+        check_peak     .set_active(set.export.peak);
+        check_hour     .set_active(set.export.hour);
+        check_day      .set_active(set.export.day);
+        entry_single   .set_text(&set.names.single);
+        entry_average  .set_text(&set.names.average);
+        entry_peak     .set_text(&set.names.peak);
+        entry_hour     .set_text(&set.names.hour);
+        entry_day      .set_text(&set.names.day);
+        file_chooser   .set_uri(&set.export.path.to_str().unwrap());
     }
 
     // Connect signals
@@ -125,16 +140,38 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
         debug!(logger, "Help clicked");
     }));
 
-    combo_devices.connect_changed(clone!(@strong logger,
-            @strong combo_devices
-            => move |_| {
-        debug!(logger, "ComboBox index: {:?}", combo_devices.get_active());
-    }));
-
     entry_dev.connect_changed(clone!(@strong logger,
             @strong entry_dev
             => move |_| {
-        debug!(logger, "Selected entry: {:?}", entry_dev.get_text().unwrap().as_str());
+        let name = entry_dev.get_text().unwrap();
+        debug!(logger, "Selected entry: {:?}", name.as_str());
+        // TODO: save device object
+    }));
+
+    entry_rate.connect_changed(clone!(@strong logger, @strong set,
+            @strong entry_rate
+            => move |_| {
+        // Parsing cannot fail due to hardcoded available values
+        let _rate = entry_rate.get_text().unwrap();
+        let rate: u32 = _rate.parse().unwrap();
+        let mut set = set.lock().unwrap();
+        set.audio.rate = rate;
+        debug!(logger, "Selected rate: {}", set.audio.rate);
+    }));
+
+    entry_format.connect_changed(clone!(@strong logger, @strong set,
+            @strong entry_format
+            => move |_| {
+        let _format = entry_format.get_text().unwrap();
+        let format = match _format.as_str() {
+            "i16" => settings::AudioFormat::i16,
+            "u16" => settings::AudioFormat::u16,
+            "f32" => settings::AudioFormat::f32,
+            _ => unreachable!(),
+        };
+        let mut set = set.lock().unwrap();
+        set.audio.format = format;
+        debug!(logger, "Selected format: {:?}", set.audio.format);
     }));
 
     check_export.connect_toggled(clone!(@strong logger, @strong set,
@@ -302,6 +339,7 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
             @strong list_devices
             => move |_| {
         debug!(logger, "Settings opened");
+        // TODO: latency when opening window is too high. move to program init.
         list_devices.clear();
         let host = cpal::default_host();
         let c_devices: Vec<cpal::Device> = host.devices().unwrap().collect();
