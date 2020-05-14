@@ -166,18 +166,18 @@ impl Default for Audio {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub (crate) struct Image {
-    pub brightness:            u8,
-    pub contrast:              u8,
-    pub dimensions:           (u16, u16),
+    pub brightness:    u8,
+    pub contrast:      u8,
+    pub dimensions:   (u16, u16),
     pub use_window_xy: bool,
 }
 
 impl Default for Image {
     fn default() -> Self {
         Image {
-            brightness:            50,
-            contrast:              50,
-            dimensions:           (1280, 720),
+            brightness:    50,
+            contrast:      50,
+            dimensions:   (1280, 720),
             use_window_xy: false,
         }
     }
@@ -199,11 +199,11 @@ impl Default for Export {
         Export {
             path: (*se::full("~/.local/share/QRuSSt/export/").unwrap()).into(),
             export_enable: true,
-            single: true,
-            average: true,
-            peak: true,
-            hour: true,
-            day: true,
+            single:        true,
+            average:       true,
+            peak:          true,
+            hour:          true,
+            day:           true,
         }
     }
 }
@@ -220,11 +220,11 @@ pub (crate) struct Names {
 impl Default for Names {
     fn default() -> Self {
         Names {
-            single:   "single" .to_string(),
-            average:  "avg"    .to_string(),
-            peak:     "pk"     .to_string(),
-            hour:     "hr"     .to_string(),
-            day:      "day"    .to_string(),
+            single:  "single".to_string(),
+            average: "avg"   .to_string(),
+            peak:    "pk"    .to_string(),
+            hour:    "hr"    .to_string(),
+            day:     "day"   .to_string(),
         }
     }
 }
@@ -241,6 +241,13 @@ pub (crate) struct Settings {
 }
 
 impl Settings {
+    fn validate_export_path(&mut self) -> () {
+        if !self.export.path.starts_with("file://") {
+            // TODO: unwrap()
+            self.export.path = format!("file://{}", self.export.path.to_str().unwrap()).into();
+        }
+    }
+
     pub fn read_config(&mut self) -> Result<(), SettingsError> {
         let mut s = Config::new();
         s.merge(Config::try_from(&self)
@@ -251,6 +258,7 @@ impl Settings {
             s.merge(c_file).map_err(SettingsError::ConfigError)?;
         }
         *self = s.try_into().map_err(SettingsError::ConfigError)?;
+        self.validate_export_path();
         Ok(())
     }
 
@@ -273,7 +281,7 @@ impl Settings {
             2 | _ => 2,
         };
 
-        // process outside of this method
+        // TODO: process outside of this method
         // if cli.is_present("save_prefs") { }
 
         if let Some(c) = cli.value_of("config") {
@@ -300,6 +308,7 @@ impl Settings {
 
         if let Some(path) = cli.value_of("export_path") {
             self.export.path = path.into();
+            self.validate_export_path();
         }
 
         if let Some(dev) = cli.value_of("device") {
