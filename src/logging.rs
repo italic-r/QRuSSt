@@ -29,9 +29,9 @@ pub (crate) fn set_logger() -> slog::Logger {
         .open(file_path);
     if file_obj.is_err() ||
         file_obj.unwrap().read_to_string(&mut cfg).is_err() ||
-            cfg.len() == 0 {
-        println!("Logging config not found. Using defaults.");
-        cfg = DEFAULT_LOGGER.into();
+        cfg.len() == 0 {
+            println!("Logging config not found. Using defaults.");
+            cfg = DEFAULT_LOGGER.into();
     }
 
     let config: LoggerConfig = toml::from_str(&cfg).unwrap();
