@@ -17,7 +17,7 @@ toml =        "~0.5.6"
 glib =        "~0.9.3"
 gtk =         {version = "0.8.0", features = ["v3_22_30"]}
 gio =         {version = "0.8.0"}
-cpal =        "~0.11.0"
+cpal =        {version = "~0.12.0", git = "https://github.com/RustAudio/cpal"}
 rustfft =     "~3.0.1"
 sample =      "~0.10.0"
 gnuplot =     "~0.0.34"
