@@ -15,4 +15,10 @@ macro_rules! mclone {
             move |$(mclone!(@param $p),)+| $body
         }
     );
+    ($($n:ident),+ => move |$($p:tt: $q:ty),+| $body:expr) => (
+        {
+            $( let $n = $n.clone(); )+
+            move |$(mclone!(@param $p): $q,)+| $body
+        }
+    );
 }
