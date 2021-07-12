@@ -3,7 +3,11 @@
 //! QRuSSt takes audio from a radio receiver and visualizes the audio spectrum in an image. Using
 //! the FFT algorithm, a user may see a signal otherwise inaudible over the air.
 
+#![allow(non_snake_case)]
 
+
+#[macro_use]
+mod macros;
 mod gui;
 mod settings;
 mod logging;
@@ -12,10 +16,11 @@ mod logging;
 extern crate slog;
 
 // std
-use std::sync::{Arc, Mutex};
-use std::rc::Rc;
+use std::sync::{Arc, Mutex, Condvar};
+// use std::rc::Rc;
 use std::thread;
 use std::sync::mpsc;
+// use std::time::Duration;
 
 // Audio
 use cpal;
@@ -24,10 +29,8 @@ use cpal::traits::*;
 // use shellexpand as se;
 
 // Data processing
-/*
-use gnuplot::*;
-*/
-// use sample::{signal, Signal};
+// use gnuplot::*;
+use dasp::{Sample};
 use rustfft::{
     FFT,
     FFTplanner,
@@ -37,172 +40,14 @@ use rustfft::{
 };
 
 
-/*
-fn _cpal_main() {
-    let (tx, rx) = mpsc::channel();
-
-    let host = cpal::default_host();
-    let event_loop = host.event_loop();
-    let c_devices: Vec<cpal::Device> = host.devices().unwrap()
-        .filter(|x| x.name().unwrap() == "SIG_AUTO").collect();
-    let format = cpal::Format{
-        channels:    1,
-        sample_rate: cpal::SampleRate(48000),
-        data_type:   cpal::SampleFormat::I16};
-    let _s = event_loop.build_input_stream(&c_devices[0], &format).unwrap();
-
-    let _thread = thread::spawn(move || {
-        event_loop.run(move |_stream_id, stream_result| {
-            let stream_data = match stream_result {
-                Ok(data) => data,
-                Err(err) => {println!("{}", err); return;},
-            };
-            if let cpal::StreamData::Input {
-                buffer: cpal::UnknownTypeInputBuffer::I16(buffer)
-            } = stream_data {
-                tx.send(buffer.iter().map(|e| *e).collect::<Vec<i16>>()).unwrap();
-            }
-        });
-    });
-
-    for pack in rx {
-        println!("packet length: {}", pack.len());
-        println!("{:?}", pack);
-    }
-}
-
-fn _fft_main() {
-    let fft_inverse = false;
-    let fft_size = 32768;
-    let samp_rate = 32768.;
-    let samp_len = fft_size;
-    let _ex_len = 2048;
-
-    // generate waveform
-    let _noise: Vec<f32> = signal::noise(12)                             .take(samp_len).map(|val| val[0] as f32).collect();
-    let _sig1:  Vec<f32> = signal::rate(samp_rate).const_hz( 600.).sine().take(samp_len).map(|val| val[0] as f32).collect();
-    let _sig2:  Vec<f32> = signal::rate(samp_rate).const_hz(1500.).sine().take(samp_len).map(|val| val[0] as f32).collect();
-
-    println!("_sig1 len: {}", _sig1.len());
-
-    let _join1: Vec<f32> = _sig1
-        .iter()
-        .zip(_sig2.iter())
-        .map(|tup| tup.0 + tup.1)
-        .collect();
-    let _join2: Vec<f32> = _join1
-        .iter()
-        .zip(_noise.iter())
-        .map(|tup| tup.0 + tup.1)
-        .collect();
-
-    // make complex data for fft
-    let mut inp: Vec<Complex<f32>> = _join2
-        .iter()
-        .map(|val| Complex::from(val))
-        .collect();
-    let mut output = vec![Zero::zero(); samp_len];
-
-    // window filter on input data before FFT
-    // let _hann = hann_window(inp.len());
-    // for i in 0..inp.len() {
-    //     inp[i] *= _hann[i];
-    // }
-
-    // automatic fft
-    let mut planner = FFTplanner::new(fft_inverse);
-    let fft = planner.plan_fft(samp_len);
-    fft.process_multi(&mut inp, &mut output);
-
-    let out_graph = output
-        .iter()
-        .map(|val| val.norm() / fft.len() as f32);
-
-    // GNUPLOT
-    // requires simple data, no Complex<T>
-    let mut fg = gnuplot::Figure::new();
-    fg.axes2d()
-        .set_title("fft", &[])
-        .lines(
-            1.._ex_len,
-            out_graph,
-            &[]);
-    fg.show().unwrap();
-}
-*/
-
-fn _cpal_fft() {
-    let fft_inverse = false;
-    let fft_size = 65536;
-    let sample_rate = 48000;
-    let f_low = 200;
-    let f_high = 3000;
-
-    let mut buffer = Vec::new();
-
-    let (tx, rx) = mpsc::channel();
-
-    let host = cpal::default_host();
-    let event_loop = host.event_loop();
-    let c_devices: Vec<cpal::Device> = host.devices().unwrap()
-        .filter(|x| x.name().unwrap() == "SIG_AUTO").collect();
-    let format = cpal::Format{
-        channels:    1,
-        sample_rate: cpal::SampleRate(sample_rate),
-        data_type:   cpal::SampleFormat::I16};
-    let _s = event_loop.build_input_stream(&c_devices[0], &format).unwrap();
-
-    let _thread = thread::spawn(move || {
-        event_loop.run(move |_stream_id, stream_result| {
-            let stream_data = match stream_result {
-                Ok(data) => data,
-                Err(err) => {println!("{}", err); return;},
-            };
-            if let cpal::StreamData::Input {
-                buffer: cpal::UnknownTypeInputBuffer::I16(buffer)
-            } = stream_data {
-                tx.send(buffer.iter().map(|e| *e).collect::<Vec<i16>>()).unwrap();
-            }
-        });
-    });
-
-    for mut pack in rx {
-        buffer.append(&mut pack);
-        if buffer.len() > fft_size {
-            buffer.truncate(fft_size);
-            break;
-        }
-    }
-
-    let mut input: Vec<Complex<f32>> = buffer
-        .iter()
-        .map(|&val| Complex::from(val as f32))
-        .collect();
-    let mut output = vec![Zero::zero(); fft_size];
-
-    let mut planner = FFTplanner::new(fft_inverse);
-    let fft = planner.plan_fft(fft_size);
-    fft.process_multi(&mut input, &mut output);
-
-    let mut normalized: Vec<f32> = output.iter().map(|val| val.norm() / (fft.len() as f32)).collect();
-    normalized.truncate(f_high);
-    println!("{:?}", normalized);
-
-    // GNUPLOT
-    // requires simple data, no Complex<T>
-    // let mut fg = gnuplot::Figure::new();
-    // fg.axes2d()
-    //     .set_title("fft", &[])
-    //     .lines(
-    //         0..f_high,
-    //         &normalized[0..f_high],
-    //         &[]);
-    // fg.show().unwrap();
+fn convert_samples<T: cpal::Sample>(s: &[T], tx: &mpsc::Sender<Vec<f32>>) {
+    println!("converting samples");
+    tx.send(s.clone().iter().map(|x| x.to_f32()).collect());
 }
 
 fn main() {
     // Set up logger
-    let logger = Rc::new(logging::set_logger());
+    let logger = Arc::new(logging::set_logger());
 
     // Read settings
     let opts = settings::clap_args();
@@ -227,18 +72,122 @@ fn main() {
         }
     }
 
-    // Set up GTK widgets with settings
+    let mut threads: Vec<_> = Vec::new();
+
+    // channel
+    let (tx, rx) = mpsc::channel::<Vec<f32>>();
+    // opts->audio cvar
+    let cvar_audio_ui = Arc::new((Mutex::new(false), Condvar::new()));
+    let cvar_audio_ui2 = cvar_audio_ui.clone();
+
+    let thread_audio = thread::Builder::new()
+        .name("audio_capture".to_string())
+        .spawn(mclone!(logger, set => move || {
+            let logger = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
+
+            loop {
+                let tx = tx.clone();
+                let (lock, cvar) = &*cvar_audio_ui2;
+                let mut restart = lock.lock().unwrap();
+
+                let set = set.lock().unwrap();
+                let dev_name = &set.audio.device;
+                // TODO: hardcoded channel count - only good for SSB audio (not IQ)
+                let channels: cpal::ChannelCount = 1;
+                let cfg = cpal::StreamConfig {
+                    channels,
+                    sample_rate: cpal::SampleRate(set.audio.rate),
+                    buffer_size: cpal::BufferSize::Default,
+                };
+
+                let host = cpal::default_host();
+
+                if let Ok(in_devices) = host.input_devices() {
+                    let devs: Vec<cpal::Device> = in_devices
+                        .filter(|d| d.name().unwrap() == *dev_name)
+                        .collect();
+                    if let Some(dev) = devs.get(0) {
+                        info!(logger, "Device: {}", dev.name().unwrap());
+                        if let Ok(stream) = dev.build_input_stream(
+                            &cfg,
+                            move |data, _cb| {
+                                match data[0].FORMAT {
+                                    cpal::SampleFormat::I16 => {tx.send(Vec::from(data));},
+                                    cpal::SampleFormat::U16 => {tx.send(Vec::from(data));},
+                                    cpal::SampleFormat::F32 => {tx.send(Vec::from(data));},
+                                }
+                            },
+                            |error| {
+                                //
+                            },
+                        ) {
+                            stream.play();
+                        }
+                    }
+                }
+                while !*restart {
+                    restart = cvar.wait(restart).unwrap();
+                }
+            }
+        }));
+
+    let thread_fft = thread::Builder::new()
+        .name("fft_process".to_string())
+        .spawn(mclone!(logger => move || {
+            // constantly receiving data, notify image gen thread upon new processed data
+            let logger = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
+            debug!(logger, "fft thread");
+
+            for d in rx {
+                info!(logger, "{:?}", d);
+            }
+
+            // let (lock, cvar) = &*p_var_tx;
+            // let mut start = lock.lock().unwrap();
+            // *start = true;
+            // cvar.notify_one();
+    }));
+
+    let thread_image = thread::Builder::new()
+        .name("image".to_string())
+        .spawn(mclone!(logger => move || {
+            // wait until data to process is available, send render update to gui(or another place?)
+            let logger = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
+            debug!(logger, "image thread");
+
+            // let (lock, cvar) = &*p_var_rx;
+            // let mut start = lock.lock().unwrap();
+            // while !*start {
+            //     start = cvar.wait(start).unwrap();
+            // }
+    }));
+
+    threads.push(thread_audio);
+    threads.push(thread_fft);
+    threads.push(thread_image);
+
+    // Finalize program settings
     // Set up threads
+    // Set up GTK widgets with settings
     // Run GTK
+    // clean up threads on GTK exit
     gui::build_gtk(&mut set, &logger);
 
-    // tx, rx, send tx to audio capture thread
-    // capture thread sends data to fft process thread
-    // fft process thread writes processed data to Mutex<Vec<fft_data>>
-    // image rendering thread processes Mutex<Vec<fft_data>> into image (redraw whole image with
+    // tx, rx
+    //      tx -> audio capture thread
+    //      rx -> fft process thread
+    // fft process thread writes processed data to Arc<Mutex<Vec<fft_data>>>
+    // image rendering thread processes Arc<Mutex<Vec<fft_data>>> into image (redraw whole image with
     //     current-time cursor and time marker ticks)
+    // who controls timeframe: render thread, main thread?
+    // always render to window size, save image files at chosen resolution
 
     gtk::main();
 
+    for t in threads {
+        if let Ok(thr) = t {
+            thr.join().unwrap();
+        }
+    }
     debug!(logger, "Quit success");
 }
