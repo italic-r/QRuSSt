@@ -1,3 +1,6 @@
+/// Build and init GTK GUI
+
+
 use std::str::FromStr;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -60,7 +63,7 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
 
     let _combo_format:   ComboBox          = builder.get_object("combo_format").unwrap();
     let list_format:     ListStore         = builder.get_object("list_format").unwrap();
-    let entry_format:    Entry             = builder.get_object("entry_format").unwrap();
+    // let entry_format:    Entry             = builder.get_object("entry_format").unwrap();
 
     let spin_freq_min:   SpinButton        = builder.get_object("spin_freq_min").unwrap();
     let spin_freq_max:   SpinButton        = builder.get_object("spin_freq_max").unwrap();
@@ -101,11 +104,11 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
         let set = set.lock().unwrap();
         entry_dev      .set_text(&set.audio.device);
         entry_rate     .set_text(&format!("{}", set.audio.rate));
-        entry_format   .set_text(match &set.audio.format {
-            settings::AudioFormat::i16 => "i16",
-            settings::AudioFormat::u16 => "u16",
-            settings::AudioFormat::f32 => "f32",
-        });
+        // entry_format   .set_text(match &set.audio.format {
+        //     settings::AudioFormat::i16 => "i16",
+        //     settings::AudioFormat::u16 => "u16",
+        //     settings::AudioFormat::f32 => "f32",
+        // });
         spin_freq_min  .set_value(set.audio.freq_range.0 as f64);
         spin_freq_max  .set_value(set.audio.freq_range.1 as f64);
         spin_brightness.set_value(set.image.brightness as f64);
@@ -159,6 +162,7 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
         debug!(logger, "Selected rate: {}", set.audio.rate);
     }));
 
+    /*
     entry_format.connect_changed(clone!(@strong logger, @strong set,
             @strong entry_format
             => move |_| {
@@ -173,6 +177,7 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
         set.audio.format = format;
         debug!(logger, "Selected format: {:?}", set.audio.format);
     }));
+    */
 
     check_export.connect_toggled(clone!(@strong logger, @strong set,
             @strong check_export

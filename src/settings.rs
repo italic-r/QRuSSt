@@ -85,9 +85,9 @@ pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
 
         (@arg device:          -d --device          [NAME]       display_order(2) number_of_values(1) {aud_exists}  "Audio device to use (use device name from `arecord -L`)"         )
         (@arg frequency_range: -F --("f-range")     [LOW] [HIGH] display_order(2) number_of_values(2) {f_range}     "Audio frequency range to process/display (maximum range: 0-3000)")
-        (@arg format:          -f --format          [TYPE]       display_order(2) number_of_values(1)
-             possible_values(&["i16", "u16", "f32"])
-             "Audio device sample format")
+        // (@arg format:          -f --format          [TYPE]       display_order(2) number_of_values(1)
+        //      possible_values(&["i16", "u16", "f32"])
+        //      "Audio device sample format")
         (@arg rate:            -r --rate            [SAMPLES]    display_order(2) number_of_values(1)
              possible_values(&["16000", "32000", "44100", "48000", "96000", "192000"])
              "Audio device sample rate")
@@ -138,18 +138,20 @@ fn hann_window(window_length: usize) -> Vec<f32> {
 }
 */
 
+/*
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub (crate) enum AudioFormat {
     i16,
     u16,
     f32,
 }
+*/
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub (crate) struct Audio {
     pub device:      String,
     pub rate:        u32,
-    pub format:      AudioFormat,
+    // pub format:      AudioFormat,
     pub freq_range: (u16, u16),
 }
 
@@ -158,7 +160,7 @@ impl Default for Audio {
         Audio {
             device:     "default".to_string(),
             rate:        48000,
-            format:      AudioFormat::i16,
+            // format:      AudioFormat::i16,
             freq_range: (100, 2800),
         }
     }
@@ -323,14 +325,14 @@ impl Settings {
         }
 
         // Valid options given in help message. Clap prevents others.
-        if let Some(f) = cli.value_of("format") {
-            self.audio.format = match f {
-                "u16" => AudioFormat::u16,
-                "i16" => AudioFormat::i16,
-                "f32" => AudioFormat::f32,
-                _     => unreachable!(),
-            };
-        }
+        // if let Some(f) = cli.value_of("format") {
+        //     self.audio.format = match f {
+        //         "u16" => AudioFormat::u16,
+        //         "i16" => AudioFormat::i16,
+        //         "f32" => AudioFormat::f32,
+        //         _     => unreachable!(),
+        //     };
+        // }
 
         // Valid options given in help message. Parse directly into u32.
         if let Some(r) = cli.value_of("rate") {
@@ -375,7 +377,7 @@ mod tests {
                 audio: Audio {
                     device: "default".to_string(),
                     rate: 48000,
-                    format: AudioFormat::i16,
+                    // format: AudioFormat::i16,
                     freq_range: (100, 2800),
                 },
                 image: Image {
