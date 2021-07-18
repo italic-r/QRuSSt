@@ -91,7 +91,7 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
 
     let file_chooser:    FileChooserButton = builder.object("settings_filechooser").unwrap();
 
-    for e in &["16000", "32000", "44100", "48000", "96000", "19200"] {
+    for e in &["16000", "32000", "44100", "48000", "96000", "192000"] {
         list_rate.insert_with_values(None, &[(0, e)]);
     }
 
