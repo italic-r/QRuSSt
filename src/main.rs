@@ -73,7 +73,7 @@ fn main() {
 
     gui::build_gtk(&mut set, &logger);
 
-    // channel
+    // audio data channel to FFT process thread
     let (tx, rx) = mpsc::channel();
 
     // opts->audio cvar
