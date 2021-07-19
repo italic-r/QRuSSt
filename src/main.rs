@@ -30,7 +30,7 @@ use cpal::traits::*;
 
 // Data processing
 // use gnuplot::*;
-use dasp::{Sample};
+use dasp::{Sample};  // for window functions
 use rustfft::{
     FFT,
     FFTplanner,
@@ -40,9 +40,8 @@ use rustfft::{
 };
 
 
-fn convert_samples<T: cpal::Sample>(s: &[T], tx: &mpsc::Sender<Vec<f32>>) {
-    println!("converting samples");
-    tx.send(s.clone().iter().map(|x| x.to_f32()).collect());
+fn send_samples<T: cpal::Sample>(s: &[T], tx: &mpsc::Sender<Vec<T>>) {
+    tx.send(Vec::from(s));
 }
 
 fn main() {
@@ -72,13 +71,18 @@ fn main() {
         }
     }
 
-    let mut threads: Vec<_> = Vec::new();
+    gui::build_gtk(&mut set, &logger);
 
     // channel
-    let (tx, rx) = mpsc::channel::<Vec<f32>>();
+    let (tx, rx) = mpsc::channel();
+
     // opts->audio cvar
-    let cvar_audio_ui = Arc::new((Mutex::new(false), Condvar::new()));
-    let cvar_audio_ui2 = cvar_audio_ui.clone();
+    let cvar_ui_to_stream_src = Arc::new((Mutex::new(false), Condvar::new()));
+    let cvar_ui_to_stream_dest = cvar_ui_to_stream_src.clone();
+
+    // FFT signaling to image thread
+    let cvar_fft_to_img_src = Arc::new((Mutex::new(false), Condvar::new()));
+    let cvar_fft_to_img_dest = cvar_ui_to_stream_src.clone();
 
     let thread_audio = thread::Builder::new()
         .name("audio_capture".to_string())
@@ -87,8 +91,7 @@ fn main() {
 
             loop {
                 let tx = tx.clone();
-                let (lock, cvar) = &*cvar_audio_ui2;
-                let mut restart = lock.lock().unwrap();
+                let (lock, cvar) = &*cvar_ui_to_stream_dest;
 
                 let set = set.lock().unwrap();
                 let dev_name = &set.audio.device;
@@ -102,33 +105,44 @@ fn main() {
 
                 let host = cpal::default_host();
 
+                // TODO: Error handling
                 if let Ok(in_devices) = host.input_devices() {
                     let devs: Vec<cpal::Device> = in_devices
                         .filter(|d| d.name().unwrap() == *dev_name)
                         .collect();
                     if let Some(dev) = devs.get(0) {
                         info!(logger, "Device: {}", dev.name().unwrap());
+                        let log_inner = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
                         if let Ok(stream) = dev.build_input_stream(
                             &cfg,
                             move |data, _cb| {
-                                match data[0].FORMAT {
-                                    cpal::SampleFormat::I16 => {tx.send(Vec::from(data));},
-                                    cpal::SampleFormat::U16 => {tx.send(Vec::from(data));},
-                                    cpal::SampleFormat::F32 => {tx.send(Vec::from(data));},
-                                }
+                                send_samples::<f32>(data, &tx);
                             },
-                            |error| {
-                                //
+                            move |error| {
+                                debug!(log_inner, "{:?}", error);
+                                // How to handle stream error: error popup, stop stream, exit?
                             },
                         ) {
-                            stream.play();
-                        }
-                    }
-                }
-                while !*restart {
-                    restart = cvar.wait(restart).unwrap();
-                }
-            }
+                            match stream.play() {
+                                Ok(_) => {
+                                    // Thread sleep must be in same block as `stream.play()`
+                                    // to keep `stream` from going out of scope and closing
+                                    let mut restart = lock.lock().unwrap();
+                                    *restart = false;
+                                    while !*restart {
+                                        debug!(logger, "Restart condition");
+                                        restart = cvar.wait(restart).unwrap();
+                                    }
+                                },
+                                Err(e) => {
+                                    error!(logger, "{:?}", e);
+                                    continue;
+                                },
+                            }
+                        }  // Ok(stream)
+                    }  // Some(dev)
+                }  // Ok(in_devices)
+            }  // loop
         }));
 
     let thread_fft = thread::Builder::new()
@@ -138,14 +152,38 @@ fn main() {
             let logger = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
             debug!(logger, "fft thread");
 
-            for d in rx {
-                info!(logger, "{:?}", d);
+            'outer: loop {
+                // get settings
+                let buffer: Vec<f32> = Vec::new();
+                let samples_per_pixel: usize = 0;
+
+                'rx: for d in &rx {
+                    // sample processing
+
+                    // when buffer full, notify image processor
+                    if buffer.len() >= samples_per_pixel {
+                        let (lock, cvar) = &*cvar_fft_to_img_src;
+                        let mut start = lock.lock().unwrap();
+                        *start = true;
+                        cvar.notify_one();
+                    }
+                }
             }
 
-            // let (lock, cvar) = &*p_var_tx;
-            // let mut start = lock.lock().unwrap();
-            // *start = true;
-            // cvar.notify_one();
+
+            // 'outer loop {
+            //   time_frame, sample_rate, window_size, storage_vec, overlap_len
+            //   'rx loop {
+            //     storage_vec.push()
+            //     if storage_vec >= window_size
+            //       process_fft(storage_vec)
+            //       notify_img_thread()
+            //       shift(storage_vec, window_size - overlap_len)
+            //       continue 'rx
+            //     if time_frame, sample_rate, etc change size:
+            //       restart 'outer
+            //   }
+            // }
     }));
 
     let thread_image = thread::Builder::new()
@@ -155,13 +193,14 @@ fn main() {
             let logger = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
             debug!(logger, "image thread");
 
-            // let (lock, cvar) = &*p_var_rx;
-            // let mut start = lock.lock().unwrap();
-            // while !*start {
-            //     start = cvar.wait(start).unwrap();
-            // }
+            let (lock, cvar) = &*cvar_fft_to_img_dest;
+            let mut start = lock.lock().unwrap();
+            while !*start {
+                start = cvar.wait(start).unwrap();
+            }
     }));
 
+    let mut threads: Vec<_> = Vec::new();
     threads.push(thread_audio);
     threads.push(thread_fft);
     threads.push(thread_image);
@@ -171,7 +210,6 @@ fn main() {
     // Set up GTK widgets with settings
     // Run GTK
     // clean up threads on GTK exit
-    gui::build_gtk(&mut set, &logger);
 
     // tx, rx
     //      tx -> audio capture thread
