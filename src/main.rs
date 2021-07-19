@@ -154,19 +154,42 @@ fn main() {
 
             'outer: loop {
                 // get settings
-                let buffer: Vec<f32> = Vec::new();
-                let samples_per_pixel: usize = 0;
+                let img_x: usize = 1280;                                    // x in pixels
+                let img_y: usize = 720;                                     // y in pixels
+
+                let frame_min: usize = 2;
+                let frame_sec: usize = frame_min * 60;
+
+                let sample_rate: usize = 48000;                             // device sample rate per second
+                let samples_per_frame = sample_rate * frame_sec;            // samples per large time frame
+
+                let samples_per_pixel: usize = samples_per_frame / img_x;   // number of samples without overlap
+
+                let overlap_percent: f32 = 0.33;
+
+                let overlap_samples = (samples_per_pixel as f32 * overlap_percent).round() as usize;
+                let window_size = samples_per_pixel + (overlap_samples * 2);
+                let shift_size = window_size - overlap_samples;
+
+                let mut large_buffer: Vec<Vec<f32>> = Vec::new();           // buffer for whole time slot
+                let mut buffer: Vec<f32> = Vec::with_capacity(window_size); // buffer for each pixel
+
+                debug!(logger, "Samples per pixel: {}", samples_per_pixel);
+                debug!(logger, "Window size: {}", window_size);
 
                 'rx: for d in &rx {
                     // sample processing
 
                     // when buffer full, notify image processor
-                    if buffer.len() >= samples_per_pixel {
+                    if buffer.len() >= window_size {
                         let (lock, cvar) = &*cvar_fft_to_img_src;
                         let mut start = lock.lock().unwrap();
                         *start = true;
                         cvar.notify_one();
                     }
+                    // if cond_changes {
+                    //   continue 'outer
+                    // }
                 }
             }
 
