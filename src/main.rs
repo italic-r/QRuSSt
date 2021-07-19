@@ -32,8 +32,8 @@ use cpal::traits::*;
 // use gnuplot::*;
 use dasp::{Sample};  // for window functions
 use rustfft::{
-    FFT,
-    FFTplanner,
+    Fft,
+    FftPlanner,
     algorithm::Radix4,
     num_complex::Complex,
     num_traits::Zero

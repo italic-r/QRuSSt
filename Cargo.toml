@@ -18,6 +18,6 @@ glib =        "~0.14.0"
 gtk =         {version = "0.14.0", features = ["v3_22_30"]}
 gio =         {version = "0.14.0"}
 cpal =        {version = "~0.13.0", git = "https://github.com/RustAudio/cpal"}
-rustfft =     "~3.0.1"
+rustfft =     "~6.0.1"
 dasp =        "~0.11.0"
 # gnuplot =     "~0.0.34"
