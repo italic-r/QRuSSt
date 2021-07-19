@@ -10,6 +10,7 @@
 mod macros;
 mod gui;
 mod settings;
+mod windows;
 mod logging;
 
 #[macro_use]
