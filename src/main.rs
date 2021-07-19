@@ -82,7 +82,7 @@ fn main() {
 
     // FFT signaling to image thread
     let cvar_fft_to_img_src = Arc::new((Mutex::new(false), Condvar::new()));
-    let cvar_fft_to_img_dest = cvar_ui_to_stream_src.clone();
+    let cvar_fft_to_img_dest = cvar_fft_to_img_src.clone();
 
     let thread_audio = thread::Builder::new()
         .name("audio_capture".to_string())
