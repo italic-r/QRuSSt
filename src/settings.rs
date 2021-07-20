@@ -19,6 +19,8 @@ use serde::{Serialize, Deserialize};
 use cpal;
 use cpal::traits::*;
 
+use super::windows;
+
 
 pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
     let path_exists = |path: String| {
@@ -94,8 +96,8 @@ pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
 #[derive(Debug)]
 pub (crate) enum SettingsError {
     ConfigError(ConfigError),    // config::ConfigError
-    ReadError(io::Error),   // file read error
-    WriteError(io::Error),  // file write error
+    ReadError(io::Error),        // file read error
+    WriteError(io::Error),       // file write error
     DeserError(toml::de::Error), // data deserialize error
     SerError(toml::ser::Error),  // data serialize error
 }
@@ -105,42 +107,54 @@ pub (crate) enum FftWindowType {
     Rectangle,
     Cosine,
     Triangle,
+    Hamming,
     Hann,
     Blackman,
-    Hamming,
     Nuttall,
     Flat,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub (crate) struct Fft {
-    pub fft_size: u32,
+pub (crate) struct FftWindow {
     pub window_type: FftWindowType,
+    pub length: usize,
+    pub window: Vec<f32>,
 }
 
-impl Default for Fft {
+impl Default for FftWindow {
     fn default() -> Self {
-        Fft {
-            fft_size: 32768,
+        FftWindow {
             window_type: FftWindowType::Hann,
+            length: 32768,
+            window: Vec::with_capacity(32768),
         }
     }
 }
 
-/*
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub (crate) enum AudioFormat {
-    i16,
-    u16,
-    f32,
+impl FftWindow {
+    fn new(length: usize, window_type: FftWindowType) -> Self {
+        let window: Vec<f32> = match window_type {
+            FftWindowType::Rectangle => windows::rectangle(length),
+            FftWindowType::Cosine    => windows::cosine(length),
+            FftWindowType::Triangle  => windows::triangle(length),
+            FftWindowType::Hann      => windows::hann(length),
+            FftWindowType::Blackman  => windows::blackman(length),
+            FftWindowType::Hamming   => windows::hamming(length),
+            FftWindowType::Nuttall   => windows::nuttall(length),
+            FftWindowType::Flat      => windows::flat(length),
+        };
+        FftWindow {
+            window_type,
+            length,
+            window,
+        }
+    }
 }
-*/
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub (crate) struct Audio {
     pub device:      String,
     pub rate:        u32,
-    // pub format:      AudioFormat,
     pub freq_range: (u16, u16),
 }
 
@@ -221,13 +235,13 @@ impl Default for Names {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub (crate) struct Settings {
-    pub verbose: u8,
-    pub config:  PathBuf,
-    pub fft:     Fft,
-    pub audio:   Audio,
-    pub image:   Image,
-    pub export:  Export,
-    pub names:   Names,
+    pub verbose:    u8,
+    pub config:     PathBuf,
+    pub fft_window: FftWindow,
+    pub audio:      Audio,
+    pub image:      Image,
+    pub export:     Export,
+    pub names:      Names,
 }
 
 impl Settings {
@@ -334,13 +348,13 @@ impl Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            verbose: 0,
-            config:  (*se::full("~/.config/QRuSSt/config.toml").unwrap()).into(),
-            fft:     Fft::default(),
-            audio:   Audio::default(),
-            image:   Image::default(),
-            export:  Export::default(),
-            names:   Names::default(),
+            verbose:    0,
+            config:     (*se::full("~/.config/QRuSSt/config.toml").unwrap()).into(),
+            fft_window: FftWindow::default(),
+            audio:      Audio::default(),
+            image:      Image::default(),
+            export:     Export::default(),
+            names:      Names::default(),
         }
     }
 }
@@ -358,9 +372,10 @@ mod tests {
             Settings {
                 verbose: 0,
                 config: config_path.into(),
-                fft: Fft {
-                    fft_size: 32768,
+                fft_window: FftWindow {
                     window_type: FftWindowType::Hann,
+                    length: 32768,
+                    window: Vec::new(),
                 },
                 audio: Audio {
                     device: "default".to_string(),
