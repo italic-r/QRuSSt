@@ -1,4 +1,4 @@
-//! QRuSSt is an application to listen to weak radio signals in the audio domain.
+//! QRuSSt listens to weak radio signals in the audio domain.
 //!
 //! QRuSSt takes audio from a radio receiver and visualizes the audio spectrum in an image. Using
 //! the FFT algorithm, a user may see a signal otherwise inaudible over the air.
@@ -18,29 +18,21 @@ extern crate slog;
 
 // std
 use std::sync::{Arc, Mutex, Condvar};
-// use std::rc::Rc;
 use std::thread;
 use std::sync::mpsc;
-// use std::time::Duration;
 
 // Audio
 use cpal;
 use cpal::traits::*;
 
-// use shellexpand as se;
-
 // Data processing
-// use gnuplot::*;
-use dasp::{Sample};  // for window functions
 use rustfft::{
-    Fft,
     FftPlanner,
-    algorithm::Radix4,
     num_complex::Complex,
-    num_traits::Zero
 };
 
 
+// remain generic to use any available sample format from cpal
 fn send_samples<T: cpal::Sample>(s: &[T], tx: &mpsc::Sender<Vec<T>>) {
     tx.send(Vec::from(s));
 }
@@ -90,7 +82,7 @@ fn main() {
         .spawn(mclone!(logger, set => move || {
             let logger = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
 
-            loop {
+            'restart_loop: loop {
                 let tx = tx.clone();
                 let (lock, cvar) = &*cvar_ui_to_stream_dest;
 
@@ -143,6 +135,10 @@ fn main() {
                         }  // Ok(stream)
                     }  // Some(dev)
                 }  // Ok(in_devices)
+                // TODO: quit condition from GUI
+                // if quit_condition {
+                //   break 'restart_loop
+                // }
             }  // loop
         }));
 
