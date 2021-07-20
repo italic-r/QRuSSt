@@ -99,7 +99,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">12</property>
+            <property name="top_attach">11</property>
           </packing>
         </child>
         <child>
@@ -112,7 +112,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">12</property>
+            <property name="top_attach">11</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -127,7 +127,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">11</property>
+            <property name="top_attach">10</property>
           </packing>
         </child>
         <child>
@@ -140,7 +140,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">11</property>
+            <property name="top_attach">10</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -155,7 +155,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">10</property>
+            <property name="top_attach">9</property>
           </packing>
         </child>
         <child>
@@ -168,7 +168,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">10</property>
+            <property name="top_attach">9</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -183,7 +183,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">9</property>
+            <property name="top_attach">8</property>
           </packing>
         </child>
         <child>
@@ -196,7 +196,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">9</property>
+            <property name="top_attach">8</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -211,7 +211,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">8</property>
+            <property name="top_attach">7</property>
           </packing>
         </child>
         <child>
@@ -224,7 +224,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">8</property>
+            <property name="top_attach">7</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -240,7 +240,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">7</property>
+            <property name="top_attach">6</property>
             <property name="width">3</property>
           </packing>
         </child>
@@ -259,7 +259,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">6</property>
+            <property name="top_attach">5</property>
           </packing>
         </child>
         <child>
@@ -277,7 +277,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">2</property>
-            <property name="top_attach">6</property>
+            <property name="top_attach">5</property>
           </packing>
         </child>
         <child>
@@ -290,7 +290,7 @@ Author: Jeffrey - KI6SGV
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">3</property>
+            <property name="top_attach">2</property>
           </packing>
         </child>
         <child>
@@ -305,7 +305,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">6</property>
+            <property name="top_attach">5</property>
           </packing>
         </child>
         <child>
@@ -319,7 +319,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">3</property>
+            <property name="top_attach">2</property>
           </packing>
         </child>
         <child>
@@ -333,7 +333,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">2</property>
-            <property name="top_attach">3</property>
+            <property name="top_attach">2</property>
           </packing>
         </child>
         <child>
@@ -355,7 +355,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">4</property>
+            <property name="top_attach">3</property>
           </packing>
         </child>
         <child>
@@ -366,7 +366,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">5</property>
+            <property name="top_attach">4</property>
           </packing>
         </child>
         <child>
@@ -377,7 +377,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">4</property>
+            <property name="top_attach">3</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -389,7 +389,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">5</property>
+            <property name="top_attach">4</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -421,7 +421,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">0</property>
-            <property name="top_attach">13</property>
+            <property name="top_attach">12</property>
           </packing>
         </child>
         <child>
@@ -435,7 +435,7 @@ Dimensions</property>
           </object>
           <packing>
             <property name="left_attach">1</property>
-            <property name="top_attach">13</property>
+            <property name="top_attach">12</property>
             <property name="width">2</property>
           </packing>
         </child>
@@ -448,17 +448,6 @@ Dimensions</property>
           <packing>
             <property name="left_attach">0</property>
             <property name="top_attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel" id="label_format">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Device Format:</property>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">2</property>
           </packing>
         </child>
         <child>
@@ -478,26 +467,6 @@ Dimensions</property>
           <packing>
             <property name="left_attach">1</property>
             <property name="top_attach">1</property>
-            <property name="width">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkComboBox" id="combo_format">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="model">list_format</property>
-            <property name="has_entry">True</property>
-            <property name="entry_text_column">0</property>
-            <child internal-child="entry">
-              <object class="GtkEntry" id="entry_format">
-                <property name="can_focus">False</property>
-                <property name="placeholder_text" translatable="yes">Device sample format...</property>
-              </object>
-            </child>
-          </object>
-          <packing>
-            <property name="left_attach">1</property>
-            <property name="top_attach">2</property>
             <property name="width">2</property>
           </packing>
         </child>

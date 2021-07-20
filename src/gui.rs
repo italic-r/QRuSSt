@@ -61,10 +61,6 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
     let list_rate:       ListStore         = builder.object("list_rate").unwrap();
     let entry_rate:      Entry             = builder.object("entry_rate").unwrap();
 
-    let _combo_format:   ComboBox          = builder.object("combo_format").unwrap();
-    let list_format:     ListStore         = builder.object("list_format").unwrap();
-    // let entry_format:    Entry             = builder.object("entry_format").unwrap();
-
     let spin_freq_min:   SpinButton        = builder.object("spin_freq_min").unwrap();
     let spin_freq_max:   SpinButton        = builder.object("spin_freq_max").unwrap();
 
@@ -93,10 +89,6 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
 
     for e in &["16000", "32000", "44100", "48000", "96000", "192000"] {
         list_rate.insert_with_values(None, &[(0, e)]);
-    }
-
-    for e in &["i16", "u16", "f32"] {
-        list_format.insert_with_values(None, &[(0, e)]);
     }
 
     // Load settings into UI
@@ -161,23 +153,6 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
         set.audio.rate = rate;
         debug!(logger, "Selected rate: {}", set.audio.rate);
     }));
-
-    /*
-    entry_format.connect_changed(clone!(@strong logger, @strong set,
-            @strong entry_format
-            => move |_| {
-        let _format = entry_format.text();
-        let format = match _format.as_str() {
-            "i16" => settings::AudioFormat::i16,
-            "u16" => settings::AudioFormat::u16,
-            "f32" => settings::AudioFormat::f32,
-            _ => unreachable!(),
-        };
-        let mut set = set.lock().unwrap();
-        set.audio.format = format;
-        debug!(logger, "Selected format: {:?}", set.audio.format);
-    }));
-    */
 
     check_export.connect_toggled(clone!(@strong logger, @strong set,
             @strong check_export
@@ -344,7 +319,6 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
             @strong list_devices
             => move |_| {
         debug!(logger, "Settings opened");
-        // TODO: latency when opening window is too high. move to program init.
         list_devices.clear();
         let host = cpal::default_host();
         let c_devices: Vec<cpal::Device> = host.devices().unwrap().collect();
