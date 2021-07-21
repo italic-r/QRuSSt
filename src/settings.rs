@@ -132,7 +132,7 @@ impl Default for FftWindow {
 }
 
 impl FftWindow {
-    fn new(length: usize, window_type: FftWindowType) -> Self {
+    pub (crate) fn new(length: usize, window_type: FftWindowType) -> Self {
         let window: Vec<f32> = match window_type {
             FftWindowType::Rectangle => windows::rectangle(length),
             FftWindowType::Cosine    => windows::cosine(length),
