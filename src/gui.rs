@@ -3,7 +3,7 @@
 
 use std::str::FromStr;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Condvar};
 
 use super::settings;
 
@@ -32,11 +32,19 @@ use slog;
 use cpal;
 use cpal::traits::*;
 
-pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog::Logger) {
+pub (crate) fn build_gtk(
+    set: Arc<Mutex<settings::Settings>>,
+    logger: &slog::Logger,
+    cvar_ui_stream: Arc<(Mutex<bool>, Condvar)>,
+    quit_condition: Arc<Mutex<bool>>
+) {
     if gtk::init().is_err() {
         crit!(logger, "GTK+ init failure.");
         return;
     }
+
+    let cvar_stream_1 = Arc::clone(&cvar_ui_stream);
+    let cvar_stream_2 = Arc::clone(&cvar_ui_stream);
 
     // Read in UI template
     // TODO: ensure asset found during distribution - may need include_str!()
@@ -330,14 +338,33 @@ pub (crate) fn build_gtk(set: &mut Arc<Mutex<settings::Settings>>, logger: &slog
     }));
 
     // save prefs at popover close
-    window_settings.connect_closed(clone!(@strong logger, @strong set
+    window_settings.connect_closed(clone!(
+            @strong logger,
+            @strong set,
+            @strong cvar_stream_2
             => move |_| {
         debug!(logger, "Prefs closed");
+        {
+            let (lock, cvar) = &*cvar_stream_2;
+            *lock.lock().unwrap() = true;
+            cvar.notify_one();
+        }
     }));
 
     // quit application when window closed
-    window_main.connect_delete_event(clone!(@strong logger => move |_, _| {
+    window_main.connect_delete_event(clone!(
+            @strong logger,
+            @strong quit_condition,
+            @strong cvar_stream_1
+            => move |_, _| {
         debug!(logger, "Quitting...");
+        {
+            *quit_condition.lock().unwrap() = true;
+
+            let (lock, cvar) = &*cvar_stream_1;
+            *lock.lock().unwrap() = true;
+            cvar.notify_one();
+        }
         gtk::main_quit();
         Inhibit(false)
     }));
