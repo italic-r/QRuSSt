@@ -190,11 +190,12 @@ fn main() {
                 let mut planner = FftPlanner::new();
                 let fft = planner.plan_fft_forward(fft_size);
 
-                'rx: for d in &rx {
+                for d in &rx {
                     // sample processing
                     for s in d {
                         buffer_raw.push(s);
                         if buffer_raw.len() >= window_size {
+                            // potentially expensive. make from other vec?
                             buffer_proc.clear();
                             buffer_proc.append(
                                 &mut buffer_raw.iter()
@@ -202,18 +203,23 @@ fn main() {
                                     .map(|x| Complex::from(*x.0 * x.1))
                                     .collect());
 
+                            // zero padding to increase FFT resolution
                             buffer_proc.extend(vec![Complex::new(0., 0.); fft_size - window_size]);
 
+                            // FFT processing
                             fft.process_with_scratch(&mut buffer_proc, &mut fft_scratch);
 
-                            // discard all frequencies after Nyquist (powers of 2 always even):
+                            // discard all frequencies after Nyquist - powers of 2 always produce
+                            //   an even number of samples
                             // N/2 for even number of input points (exactly Nyquist freq)
                             // (N-1)/2 for odd (last positive point)
                             buffer_proc.truncate(fft_size/2);
 
+                            // normalize processed FFT samples
                             buffer_proc_lrg.push(
                                 buffer_proc.iter().map(|x| x.norm() / (fft_size as f32).sqrt()
                             ).collect());
+                            // shift left window_size - overlap_samples and leave tail samples
                             buffer_raw.rotate_left(shift_size);
                             buffer_raw.truncate(overlap_samples);
 
