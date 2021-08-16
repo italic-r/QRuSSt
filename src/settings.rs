@@ -154,8 +154,8 @@ impl FftWindow {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub (crate) struct Audio {
     pub device:      String,
-    pub rate:        u32,
-    pub freq_range: (u16, u16),
+    pub rate:        usize,
+    pub freq_range: (usize, usize),
 }
 
 impl Default for Audio {
@@ -172,7 +172,7 @@ impl Default for Audio {
 pub (crate) struct Image {
     pub brightness:    u8,
     pub contrast:      u8,
-    pub dimensions:   (u16, u16),
+    pub dimensions:   (usize, usize),
     pub use_window_xy: bool,
 }
 
@@ -296,7 +296,7 @@ impl Settings {
 
         if let Some(d) = cli.values_of("dimensions") {
             // requires two args, so direct conversion is ok here
-            let d: Vec<u16> = d.map(|x| x.parse().unwrap()).collect();
+            let d: Vec<usize> = d.map(|x| x.parse().unwrap()).collect();
             self.image.dimensions = (d[0], d[1]);
         }
 
@@ -321,7 +321,7 @@ impl Settings {
 
         // Value already checked against parse. Safe to unwrap.
         if let Some(freq) = cli.values_of("frequency_range") {
-            let mut freq: Vec<u16> = freq.map(|x| x.parse().unwrap()).collect();
+            let mut freq: Vec<usize> = freq.map(|x| x.parse().unwrap()).collect();
             freq.sort_unstable();
             self.audio.freq_range = (freq[0], freq[1]);
         }

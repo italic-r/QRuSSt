@@ -155,10 +155,9 @@ pub (crate) fn build_gtk(
             @strong entry_rate
             => move |_| {
         // Parsing cannot fail due to hardcoded available values
-        let _rate = entry_rate.text();
-        let rate: u32 = _rate.parse().unwrap();
+        let rate: u32 = entry_rate.text().parse().unwrap();
         let mut set = set.lock().unwrap();
-        set.audio.rate = rate;
+        set.audio.rate = rate as usize;
         debug!(logger, "Selected rate: {}", set.audio.rate);
     }));
 
@@ -257,7 +256,7 @@ pub (crate) fn build_gtk(
             @strong spin_width
             => move |_| {
         let mut set = set.lock().unwrap();
-        set.image.dimensions = (spin_width.value() as u16, set.image.dimensions.1);
+        set.image.dimensions = (spin_width.value() as usize, set.image.dimensions.1);
         debug!(logger, "Width: {:?}", set.image.dimensions);
     }));
 
@@ -265,7 +264,7 @@ pub (crate) fn build_gtk(
             @strong spin_height
             => move |_| {
         let mut set = set.lock().unwrap();
-        set.image.dimensions = (set.image.dimensions.0, spin_height.value() as u16);
+        set.image.dimensions = (set.image.dimensions.0, spin_height.value() as usize);
         debug!(logger, "Width: {:?}", set.image.dimensions);
     }));
 
@@ -274,8 +273,8 @@ pub (crate) fn build_gtk(
             => move |_| {
         let mut set = set.lock().unwrap();
         set.audio.freq_range = (
-            spin_freq_min.value()  as u16,
-            set.audio.freq_range.1 as u16);
+            spin_freq_min.value()  as usize,
+            set.audio.freq_range.1 as usize);
         debug!(logger, "Set frequency range: {:?}", set.audio.freq_range);
     }));
 
@@ -284,8 +283,8 @@ pub (crate) fn build_gtk(
             => move |_| {
         let mut set = set.lock().unwrap();
         set.audio.freq_range = (
-            set.audio.freq_range.0 as u16,
-            spin_freq_max.value()  as u16);
+            set.audio.freq_range.0 as usize,
+            spin_freq_max.value()  as usize);
         debug!(logger, "Set frequency range: {:?}", set.audio.freq_range);
     }));
 
