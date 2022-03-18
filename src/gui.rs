@@ -109,13 +109,13 @@ pub (crate) fn build_gtk(
         //     settings::AudioFormat::u16 => "u16",
         //     settings::AudioFormat::f32 => "f32",
         // });
-        spin_freq_min  .set_value(set.audio.freq_range.0 as f64);
-        spin_freq_max  .set_value(set.audio.freq_range.1 as f64);
+        spin_freq_min  .set_value(set.audio.freq_range[0] as f64);
+        spin_freq_max  .set_value(set.audio.freq_range[1] as f64);
         spin_brightness.set_value(set.image.brightness as f64);
         spin_contrast  .set_value(set.image.contrast as f64);
         check_win_xy   .set_active(set.image.use_window_xy);
-        spin_width     .set_value(set.image.dimensions.0 as f64);
-        spin_height    .set_value(set.image.dimensions.1 as f64);
+        spin_width     .set_value(set.image.dimensions[0] as f64);
+        spin_height    .set_value(set.image.dimensions[1] as f64);
         check_export   .set_active(set.export.export_enable);
         check_single   .set_active(set.export.single);
         check_average  .set_active(set.export.average);
@@ -157,7 +157,7 @@ pub (crate) fn build_gtk(
         // Parsing cannot fail due to hardcoded available values
         let rate: u32 = entry_rate.text().parse().unwrap();
         let mut set = set.lock().unwrap();
-        set.audio.rate = rate as usize;
+        set.audio.rate = rate;
         debug!(logger, "Selected rate: {}", set.audio.rate);
     }));
 
@@ -256,7 +256,7 @@ pub (crate) fn build_gtk(
             @strong spin_width
             => move |_| {
         let mut set = set.lock().unwrap();
-        set.image.dimensions = (spin_width.value() as usize, set.image.dimensions.1);
+        set.image.dimensions = vec![spin_width.value() as u32, set.image.dimensions[1]];
         debug!(logger, "Width: {:?}", set.image.dimensions);
     }));
 
@@ -264,7 +264,7 @@ pub (crate) fn build_gtk(
             @strong spin_height
             => move |_| {
         let mut set = set.lock().unwrap();
-        set.image.dimensions = (set.image.dimensions.0, spin_height.value() as usize);
+        set.image.dimensions = vec![set.image.dimensions[0], spin_height.value() as u32];
         debug!(logger, "Width: {:?}", set.image.dimensions);
     }));
 
@@ -272,9 +272,9 @@ pub (crate) fn build_gtk(
             @strong spin_freq_min
             => move |_| {
         let mut set = set.lock().unwrap();
-        set.audio.freq_range = (
-            spin_freq_min.value()  as usize,
-            set.audio.freq_range.1 as usize);
+        set.audio.freq_range = vec![
+            spin_freq_min.value()  as u32,
+            set.audio.freq_range[1] as u32];
         debug!(logger, "Set frequency range: {:?}", set.audio.freq_range);
     }));
 
@@ -282,9 +282,9 @@ pub (crate) fn build_gtk(
             @strong spin_freq_max
             => move |_| {
         let mut set = set.lock().unwrap();
-        set.audio.freq_range = (
-            set.audio.freq_range.0 as usize,
-            spin_freq_max.value()  as usize);
+        set.audio.freq_range = vec![
+            set.audio.freq_range[0] as u32,
+            spin_freq_max.value()  as u32];
         debug!(logger, "Set frequency range: {:?}", set.audio.freq_range);
     }));
 

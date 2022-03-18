@@ -5,13 +5,12 @@ use std::io;
 use std::io::prelude::*;
 use std::fs::OpenOptions;
 use std::path::PathBuf;
-use std::convert::Infallible;
 
 use clap;
 use clap::clap_app;
 
 use shellexpand as se;
-use config::{Config, ConfigError, File as cFile};
+use config::{Config, ConfigError, FileFormat, File as cFile};
 
 use toml;
 use serde::{Serialize, Deserialize};
@@ -20,6 +19,9 @@ use cpal;
 use cpal::traits::*;
 
 use super::windows;
+
+
+const DEFAULT_CONFIG: &str = include_str!("../assets/default.toml");
 
 
 pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
@@ -102,7 +104,13 @@ pub (crate) enum SettingsError {
     SerError(toml::ser::Error),  // data serialize error
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+impl From<ConfigError> for SettingsError {
+    fn from(e: ConfigError) -> Self {
+        SettingsError::ConfigError(e)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub (crate) enum FftWindowType {
     Rectangle,
     Cosine,
@@ -118,52 +126,47 @@ pub (crate) enum FftWindowType {
 pub (crate) struct FftWindow {
     pub window_type: FftWindowType,
     pub length: usize,
-    pub window: Vec<f32>,
+    pub window_func: Vec<f32>,
 }
 
 impl Default for FftWindow {
     fn default() -> Self {
-        FftWindow {
-            window_type: FftWindowType::Hann,
-            length: 32768,
-            window: Vec::with_capacity(32768),
-        }
+        FftWindow::new(32768, &FftWindowType::Hann)
     }
 }
 
 impl FftWindow {
-    pub (crate) fn new(length: usize, window_type: FftWindowType) -> Self {
-        let window: Vec<f32> = match window_type {
-            FftWindowType::Rectangle => windows::rectangle(length),
-            FftWindowType::Cosine    => windows::cosine(length),
-            FftWindowType::Triangle  => windows::triangle(length),
-            FftWindowType::Hann      => windows::hann(length),
-            FftWindowType::Blackman  => windows::blackman(length),
-            FftWindowType::Hamming   => windows::hamming(length),
-            FftWindowType::Nuttall   => windows::nuttall(length),
-            FftWindowType::Flat      => windows::flat(length),
-        };
+    pub (crate) fn new(length: usize, window_type: &FftWindowType) -> Self {
         FftWindow {
-            window_type,
+            window_type: *window_type,
             length,
-            window,
+            window_func: match *window_type {
+                FftWindowType::Rectangle => windows::rectangle(length),
+                FftWindowType::Cosine    => windows::cosine(length),
+                FftWindowType::Triangle  => windows::triangle(length),
+                FftWindowType::Hann      => windows::hann(length),
+                FftWindowType::Blackman  => windows::blackman(length),
+                FftWindowType::Hamming   => windows::hamming(length),
+                FftWindowType::Nuttall   => windows::nuttall(length),
+                FftWindowType::Flat      => windows::flat(length),
+            }
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub (crate) struct Audio {
-    pub device:      String,
-    pub rate:        usize,
-    pub freq_range: (usize, usize),
+    pub device:     String,
+    pub rate:       u32,
+    pub freq_range: Vec<u32>,
 }
 
 impl Default for Audio {
     fn default() -> Self {
         Audio {
-            device:     "default".to_string(),
-            rate:        48000,
-            freq_range: (100, 2800),
+            device:    "default".to_string(),
+            rate:       48000,
+            freq_range: vec![100, 2800],
         }
     }
 }
@@ -172,7 +175,7 @@ impl Default for Audio {
 pub (crate) struct Image {
     pub brightness:    u8,
     pub contrast:      u8,
-    pub dimensions:   (usize, usize),
+    pub dimensions:    Vec<u32>,
     pub use_window_xy: bool,
 }
 
@@ -181,7 +184,7 @@ impl Default for Image {
         Image {
             brightness:    50,
             contrast:      50,
-            dimensions:   (1280, 720),
+            dimensions:    vec![1280, 720],
             use_window_xy: false,
         }
     }
@@ -245,25 +248,74 @@ pub (crate) struct Settings {
 }
 
 impl Settings {
-    fn validate_export_path(&mut self) -> () {
-        if !self.export.path.starts_with("file://") {
-            // TODO: unwrap()
-            self.export.path = format!("file://{}", self.export.path.to_str().unwrap()).into();
-        }
-    }
+    pub fn load_config(&mut self, cli: &clap::ArgMatches) -> Result<Self, SettingsError> {
+        let mut b = Config::builder()
+            .add_source(cFile::from_str(DEFAULT_CONFIG, FileFormat::Toml))
+            .add_source(cFile::with_name(&self.config.to_str().unwrap()));
 
-    pub fn read_config(&mut self) -> Result<(), SettingsError> {
-        let mut s = Config::new();
-        s.merge(Config::try_from(&self)
-            .map_err(SettingsError::ConfigError)?)
-            .map_err(SettingsError::ConfigError)?;
-        if let Some(buf) = &self.config.to_str() {
-            let c_file = cFile::with_name(buf);
-            s.merge(c_file).map_err(SettingsError::ConfigError)?;
+        // Parse and save CLI args
+        b = b.set_override("verbose", match cli.occurrences_of("verbose") {
+            0 => 0_u8,
+            1 => 1_u8,
+            2 | _ => 2_u8,
+        })?;
+
+        if let Some(c) = cli.value_of("config") {
+            b = b.set_override("config", c)?;
         }
-        *self = s.try_into().map_err(SettingsError::ConfigError)?;
-        self.validate_export_path();
-        Ok(())
+
+        if cli.is_present("window") {
+            b = b.set_override("image.use_window_xy", true)?;
+        }
+
+        if let Some(d) = cli.values_of("dimensions") {
+            // requires two args, so direct conversion is ok here
+            let d: Vec<u32> = d.map(|x| x.parse().unwrap()).collect();
+            b = b.set_override::<&str, Vec<u32>>("image.dimensions", vec![d[0], d[1]])?;
+        }
+
+        if let Some(x) = cli.value_of("brightness") {
+            b = b.set_override::<&str, u8>("image.brightness", x.parse().unwrap())?;
+        }
+
+        if let Some(c) = cli.value_of("contrast") {
+            b = b.set_override::<&str, u8>("image.contrast", c.parse().unwrap())?;
+        }
+
+        if cli.is_present("export_images") {
+            b = b.set_override("export_images", true)?;
+        }
+
+        if let Some(path) = cli.value_of("export_path") {
+            if !path.starts_with("file://") {
+                // XXX: unwrap()
+                self.export.path = format!("file://{}", self.export.path.to_str().unwrap()).into();
+            }
+            b = b.set_override("export.path", path)?;
+        }
+
+        if let Some(dev) = cli.value_of("device") {
+            b = b.set_override("audio.device", dev)?;
+        }
+
+        // Value already checked against parse. Safe to unwrap.
+        if let Some(freq) = cli.values_of("frequency_range") {
+            let mut freq: Vec<u32> = freq.map(|x| x.parse().unwrap()).collect();
+            freq.sort_unstable();
+            b = b.set_override::<&str, Vec<u32>>("audio.freq_range", vec![freq[0], freq[1]])?;
+        }
+
+        // Valid options given in help message. Parse directly into u32.
+        if let Some(r) = cli.value_of("rate") {
+            b = b.set_override::<&str, u32>("audio.rate", r.parse().unwrap())?;
+        }
+
+        // TODO: process outside of this method
+        // if cli.is_present("save_prefs") { }
+
+        // Read files and finalize config for use
+        let s = b.build()?;
+        s.try_deserialize().map_err(SettingsError::ConfigError)
     }
 
     pub fn write_config(&self) -> Result<(), SettingsError> {
@@ -275,72 +327,6 @@ impl Settings {
             .map_err(SettingsError::SerError)?;
         file.write_all(format!("{}", coded).as_bytes())
             .map_err(SettingsError::WriteError)?;
-        Ok(())
-    }
-
-    pub fn arg_override(&mut self, cli: &clap::ArgMatches) -> Result<(), Infallible> {
-        self.verbose = match cli.occurrences_of("verbose") {
-            0     => 0,
-            1     => 1,
-            2 | _ => 2,
-        };
-
-        // TODO: process outside of this method
-        // if cli.is_present("save_prefs") { }
-
-        if let Some(c) = cli.value_of("config") {
-            self.config = c.into();
-        }
-
-        self.image.use_window_xy = cli.is_present("window");
-
-        if let Some(d) = cli.values_of("dimensions") {
-            // requires two args, so direct conversion is ok here
-            let d: Vec<usize> = d.map(|x| x.parse().unwrap()).collect();
-            self.image.dimensions = (d[0], d[1]);
-        }
-
-        if let Some(b) = cli.value_of("brightness") {
-            self.image.brightness = b.parse().unwrap();
-        }
-
-        if let Some(c) = cli.value_of("contrast") {
-            self.image.contrast = c.parse().unwrap();
-        }
-
-        self.export.export_enable = cli.is_present("export_images");
-
-        if let Some(path) = cli.value_of("export_path") {
-            self.export.path = path.into();
-            self.validate_export_path();
-        }
-
-        if let Some(dev) = cli.value_of("device") {
-            self.audio.device = dev.into();
-        }
-
-        // Value already checked against parse. Safe to unwrap.
-        if let Some(freq) = cli.values_of("frequency_range") {
-            let mut freq: Vec<usize> = freq.map(|x| x.parse().unwrap()).collect();
-            freq.sort_unstable();
-            self.audio.freq_range = (freq[0], freq[1]);
-        }
-
-        // Valid options given in help message. Clap prevents others.
-        // if let Some(f) = cli.value_of("format") {
-        //     self.audio.format = match f {
-        //         "u16" => AudioFormat::u16,
-        //         "i16" => AudioFormat::i16,
-        //         "f32" => AudioFormat::f32,
-        //         _     => unreachable!(),
-        //     };
-        // }
-
-        // Valid options given in help message. Parse directly into u32.
-        if let Some(r) = cli.value_of("rate") {
-            self.audio.rate = r.parse().unwrap();
-        }
-
         Ok(())
     }
 }
@@ -356,84 +342,5 @@ impl Default for Settings {
             export:     Export::default(),
             names:      Names::default(),
         }
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn default_settings() {
-        let config_path: PathBuf = (*se::full("~/.config/QRuSSt/config.toml").unwrap()).into();
-        let export_path: PathBuf = (*se::full("~/.local/share/QRuSSt/export/").unwrap()).into();
-        let def = Settings::default();
-        assert_eq!(def,
-            Settings {
-                verbose: 0,
-                config: config_path.into(),
-                fft_window: FftWindow {
-                    window_type: FftWindowType::Hann,
-                    length: 32768,
-                    window: Vec::new(),
-                },
-                audio: Audio {
-                    device: "default".to_string(),
-                    rate: 48000,
-                    // format: AudioFormat::i16,
-                    freq_range: (100, 2800),
-                },
-                image: Image {
-                    brightness: 50,
-                    contrast: 50,
-                    dimensions: (1280, 720),
-                    use_window_xy: false,
-                },
-                export: Export {
-                    path: export_path.into(),
-                    export_enable: true,
-                    single: true,
-                    average: true,
-                    peak: true,
-                    hour: true,
-                    day: true,
-                },
-                names: Names {
-                    single: "single".to_string(),
-                    average: "avg".to_string(),
-                    peak: "pk".to_string(),
-                    hour: "hr".to_string(),
-                    day: "day".to_string(),
-                },
-            }
-        );
-    }
-    #[test]
-    fn config_read() {
-        let mut def = Settings::default();
-        def.config = "assets/default.toml".into();
-        let read_ok = def.read_config();
-        assert!(read_ok.is_ok());
-
-        def.config = "assets/no_file.toml".into();
-        let read_err = def.read_config();
-        assert!(read_err.is_err());
-    }
-    #[test]
-    fn config_write() {
-        let mut def = Settings::default();
-        def.config = "assets/write_test_ok.toml".into();
-        let write_ok = def.write_config();
-        assert!(write_ok.is_ok());
-
-        def.config = "/write_test_err.toml".into();
-        let write_err = def.write_config();
-        assert!(write_err.is_err());
-    }
-    #[test]
-    fn arg_override() {
-        let mut set = Settings::default();
-        let args = clap_args();
-        assert!(set.arg_override(&args).is_ok());
     }
 }
