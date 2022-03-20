@@ -156,15 +156,18 @@ fn main() {
 
                 let (img_x, img_y) = (set.image.dimensions[0], set.image.dimensions[1]);
                 let (freq_min, freq_max) = (set.audio.freq_range[0], set.audio.freq_range[1]);
+                let window = &set.fft_window.clone();
+                let sample_rate = set.audio.rate;
+
+                // unlock settings ASAP and do heavy work after
+                drop(set);
 
                 // TODO: time frame from where? hardcoded to 2 minute window for now
                 let frame_min = 2_u32;
                 let frame_sec = frame_min * 60;
-
-                let sample_rate = set.audio.rate;
                 let samples_per_frame = sample_rate * frame_sec;
 
-                let samples_per_pixel_x: u32 = samples_per_frame / img_x;
+                let samples_per_pixel_x = samples_per_frame / img_x;
 
                 let overlap_percent: f32 = 0.33;
                 let overlap_samples = (samples_per_pixel_x as f32 * overlap_percent).round() as u32;
@@ -172,24 +175,19 @@ fn main() {
                 let window_size: u32 = samples_per_pixel_x + (overlap_samples * 2_u32);
                 let shift_size = window_size - overlap_samples;
 
-                let window = &set.fft_window.clone();
-
-                // unlock settings ASAP and do heavy work after
-                drop(set);
-
                 let nearest_pow_2: u32 = ((window_size as f32).ln() / 2_f32.ln()).ceil() as u32;
                 let fft_size = 2_u32.pow(nearest_pow_2);
 
                 // sample frequency ranges
                 // most likely in drawing thread
-                let freq_per_fft_samp: u32 = (sample_rate / 2_u32) / (fft_size / 2_u32 - 1_u32);
+                let freq_per_fft_samp = (sample_rate / 2) / (fft_size / 2 - 1);
                 let sample_first = freq_per_fft_samp * freq_min;
-                let sample_last = freq_per_fft_samp * freq_max;
+                let sample_last  = freq_per_fft_samp * freq_max;
                 let _samples_per_pixel_y = (sample_last - sample_first) / img_y;
 
-                let mut buffer_proc_lrg: Vec<Vec<f32>> = Vec::new();                           // buffer for whole time slot
+                let mut buffer_proc_lrg: Vec<Vec<f32>> = Vec::new();                                    // buffer for whole time slot
                 let mut buffer_proc: Vec<Complex<f32>> = Vec::with_capacity(fft_size as usize);         // buffer for windowed and FFT processed samples
-                let mut buffer_raw:  Vec<f32> = Vec::with_capacity(window_size as usize);               // buffer for unwindowed, unprocessed samples
+                let mut buffer_raw:  Vec<f32>          = Vec::with_capacity(window_size as usize);      // buffer for unwindowed, unprocessed samples
                 let mut fft_scratch: Vec<Complex<f32>> = vec![Complex::new(0., 0.); fft_size as usize]; // scratch for fft processor
 
                 let mut planner = FftPlanner::new();
@@ -200,7 +198,6 @@ fn main() {
                     for s in d {
                         buffer_raw.push(s);
                         if buffer_raw.len() >= window_size as usize {
-                            // potentially expensive. make from other vec?
                             buffer_proc.clear();
                             buffer_proc.append(
                                 &mut buffer_raw.iter()
