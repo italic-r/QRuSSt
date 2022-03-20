@@ -10,7 +10,7 @@ use clap;
 use clap::clap_app;
 
 use shellexpand as se;
-use config::{Config, ConfigError, FileFormat, File as cFile};
+use config::{Config, ConfigError, File as cFile};
 
 use toml;
 use serde::{Serialize, Deserialize};
@@ -19,9 +19,6 @@ use cpal;
 use cpal::traits::*;
 
 use super::windows;
-
-
-const DEFAULT_CONFIG: &str = include_str!("../assets/default.toml");
 
 
 pub (crate) fn clap_args() -> clap::ArgMatches<'static> {
@@ -248,16 +245,29 @@ pub (crate) struct Settings {
 }
 
 impl Settings {
+    pub fn read_config_file(&mut self) -> Result<(), SettingsError> {
+        let file = OpenOptions::new()
+            .read(true).write(false).create(false)
+            .open(&self.config)
+            .map_err(SettingsError::ReadError)?;
+        Ok(())
+    }
+
     pub fn load_config(&mut self, cli: &clap::ArgMatches) -> Result<Self, SettingsError> {
-        let mut b = Config::builder()
-            .add_source(cFile::from_str(DEFAULT_CONFIG, FileFormat::Toml))
-            .add_source(cFile::with_name(&self.config.to_str().unwrap()));
+        let mut b = Config::builder();
+            // XXX: Need default serialized in file when defaults are created when object is created?
+            //.add_source(&toml::to_string(&Self::default()).unwrap())
+        if self.read_config_file().is_ok() {
+            b = b.add_source(cFile::with_name(&self.config.to_str().unwrap()));
+        } else {
+            println!("Error reading existing config.");
+        }
 
         // Parse and save CLI args
         b = b.set_override("verbose", match cli.occurrences_of("verbose") {
-            0 => 0_u8,
-            1 => 1_u8,
-            2 | _ => 2_u8,
+            0 => 0,
+            1 => 1,
+            2 | _ => 2,
         })?;
 
         if let Some(c) = cli.value_of("config") {
@@ -271,15 +281,15 @@ impl Settings {
         if let Some(d) = cli.values_of("dimensions") {
             // requires two args, so direct conversion is ok here
             let d: Vec<u32> = d.map(|x| x.parse().unwrap()).collect();
-            b = b.set_override::<&str, Vec<u32>>("image.dimensions", vec![d[0], d[1]])?;
+            b = b.set_override::<&str, Vec<i32>>("image.dimensions", vec![d[0] as i32, d[1] as i32])?;
         }
 
         if let Some(x) = cli.value_of("brightness") {
-            b = b.set_override::<&str, u8>("image.brightness", x.parse().unwrap())?;
+            b = b.set_override::<&str, i8>("image.brightness", x.parse().unwrap())?;
         }
 
         if let Some(c) = cli.value_of("contrast") {
-            b = b.set_override::<&str, u8>("image.contrast", c.parse().unwrap())?;
+            b = b.set_override::<&str, i8>("image.contrast", c.parse().unwrap())?;
         }
 
         if cli.is_present("export_images") {
@@ -300,18 +310,16 @@ impl Settings {
 
         // Value already checked against parse. Safe to unwrap.
         if let Some(freq) = cli.values_of("frequency_range") {
-            let mut freq: Vec<u32> = freq.map(|x| x.parse().unwrap()).collect();
+            let mut freq: Vec<i32> = freq.map(|x| x.parse().unwrap()).collect();
             freq.sort_unstable();
-            b = b.set_override::<&str, Vec<u32>>("audio.freq_range", vec![freq[0], freq[1]])?;
+            println!("freq: {:?}", &freq);
+            b = b.set_override::<&str, Vec<i32>>("audio.freq_range", vec![freq[0], freq[1]])?;
         }
 
         // Valid options given in help message. Parse directly into u32.
         if let Some(r) = cli.value_of("rate") {
-            b = b.set_override::<&str, u32>("audio.rate", r.parse().unwrap())?;
+            b = b.set_override::<&str, i32>("audio.rate", r.parse().unwrap())?;
         }
-
-        // TODO: process outside of this method
-        // if cli.is_present("save_prefs") { }
 
         // Read files and finalize config for use
         let s = b.build()?;
