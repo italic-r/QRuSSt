@@ -43,6 +43,7 @@ fn main() {
     // Read settings
     let opts = settings::clap_args();
     let set = Arc::new(Mutex::new(settings::Settings::default()));
+    /*
     if let Some(c) = opts.value_of("config") {
         let mut set = set.lock().unwrap();
         set.config = c.into();
@@ -60,6 +61,7 @@ fn main() {
             }
         }
     }
+    */
 
     // audio data channel to FFT process thread
     let (tx, rx) = mpsc::channel();
@@ -216,7 +218,7 @@ fn main() {
                             //   an even number of samples
                             // N/2 for even number of input points (exactly Nyquist freq)
                             // (N-1)/2 for odd (last positive point)
-                            buffer_proc.truncate(fft_size as usize/2);
+                            buffer_proc.truncate(fft_size as usize / 2);
 
                             // normalize processed FFT samples
                             buffer_proc_lrg.push(
