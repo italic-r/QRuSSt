@@ -255,11 +255,10 @@ impl Settings {
 
     pub fn load_config(&mut self, cli: &clap::ArgMatches) -> Result<Self, SettingsError> {
         let mut b = Config::builder();
-            // XXX: Need default serialized in file when defaults are created when object is created?
-            //.add_source(&toml::to_string(&Self::default()).unwrap())
         if self.read_config_file().is_ok() {
             b = b.add_source(cFile::with_name(&self.config.to_str().unwrap()));
         } else {
+            // XXX: Get logger in here!
             println!("Error reading existing config.");
         }
 
