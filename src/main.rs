@@ -270,12 +270,6 @@ fn main() {
     threads.push(thread_fft);
     threads.push(thread_image);
 
-    // Finalize program settings
-    // Set up threads
-    // Set up GTK widgets with settings
-    // Run GTK
-    // clean up threads on GTK exit
-
     // tx, rx
     //      tx -> audio capture thread
     //      rx -> fft process thread
