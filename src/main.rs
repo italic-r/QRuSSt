@@ -77,6 +77,7 @@ fn main() {
     // FFT signaling to image thread
     let cvar_fft_img_src = Arc::new((Mutex::new(false), Condvar::new()));
     let cvar_fft_img_dest = cvar_fft_img_src.clone();
+    let mut buffer_proc_lrg: Arc<Mutex<Vec<Vec<f32>>>> = Arc::new(Mutex::new(Vec::new()));                                    // buffer for whole time slot
 
     let quit_condition: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
     gui::build_gtk(Arc::clone(&set), &logger, cvar_ui_stream_src, Arc::clone(&quit_condition));
@@ -150,7 +151,7 @@ fn main() {
 
     let thread_fft = thread::Builder::new()
         .name("fft_process".to_string())
-        .spawn(mclone!(logger, set => move || {
+        .spawn(mclone!(logger, set, buffer_proc_lrg => move || {
             // constantly receiving data, notify image gen thread upon new processed data
             let logger = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
 
@@ -167,9 +168,7 @@ fn main() {
                 drop(set);
 
                 // TODO: time frame from where? hardcoded to 2 minute window for now
-                let frame_min = 2_u32;
-                let frame_sec = frame_min * 60;
-                let samples_per_frame = sample_rate * frame_sec;
+                let samples_per_frame = 2_u32 * 60 * sample_rate;
 
                 let samples_per_pixel_x = samples_per_frame / img_x;
 
@@ -189,7 +188,6 @@ fn main() {
                 let sample_last  = freq_per_fft_samp * freq_max;
                 let _samples_per_pixel_y = (sample_last - sample_first) / img_y;
 
-                let mut buffer_proc_lrg: Vec<Vec<f32>> = Vec::new();                                    // buffer for whole time slot
                 let mut buffer_proc: Vec<Complex<f32>> = Vec::with_capacity(fft_size as usize);         // buffer for windowed and FFT processed samples
                 let mut buffer_raw:  Vec<f32>          = Vec::with_capacity(window_size as usize);      // buffer for unwindowed, unprocessed samples
                 let mut fft_scratch: Vec<Complex<f32>> = vec![Complex::new(0., 0.); fft_size as usize]; // scratch for fft processor
@@ -222,9 +220,12 @@ fn main() {
                             buffer_proc.truncate(fft_size as usize / 2);
 
                             // normalize processed FFT samples
-                            buffer_proc_lrg.push(
+                            let mut buf_lock = buffer_proc_lrg.lock().unwrap();
+                            buf_lock.push(
                                 buffer_proc.iter().map(|x| x.norm() / (fft_size as f32).sqrt()
                             ).collect());
+                            drop(buf_lock);
+
                             // shift left window_size - overlap_samples and leave tail samples
                             buffer_raw.rotate_left(shift_size as usize);
                             buffer_raw.truncate(overlap_samples as usize);
@@ -251,7 +252,7 @@ fn main() {
 
     let thread_image = thread::Builder::new()
         .name("image".to_string())
-        .spawn(mclone!(logger, quit_condition => move || {
+        .spawn(mclone!(logger, quit_condition, buffer_proc_lrg => move || {
             // wait until data to process is available, send render update to gui(or another place?)
             let logger = logger.new(o!("thread" => format!("{}", thread::current().name().unwrap())));
             debug!(logger, "image thread");
@@ -262,6 +263,15 @@ fn main() {
                 while !*start {
                     start = cvar.wait(start).unwrap();
                 }
+
+                // create image canvas w/dimensions
+
+                let buf_lock = buffer_proc_lrg.lock().unwrap();
+                // img drawing here
+                drop(buf_lock);
+
+                // send image to GUI
+
                 if *quit_condition.lock().unwrap() {
                     debug!(logger, "breaking img thread");
                     break;
