@@ -24,6 +24,10 @@ use std::thread;
 use cpal;
 use cpal::traits::*;
 
+// Image
+use image;
+use colorous;
+
 // Data processing
 use rustfft::{
     FftPlanner,
